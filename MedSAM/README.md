@@ -1,10 +1,16 @@
 # MedSAM
-This is the official repository for MedSAM: Segment Anything in Medical Images.
+This README.md is modified from the official MedSAM repo README, created by Ma et al., and located at https://github.com/bowang-lab/MedSAM.
 
-## News
+To install MedSAM, clone the original MedSAM repo at https://github.com/bowang-lab/MedSAM and follow the authors' installation instructions (copied below as well for ease of access).
 
-- 2024.01.15: Welcome to join [CVPR 2024 Challenge: MedSAM on Laptop](https://www.codabench.org/competitions/1847/)
-- 2024.01.15: Release [LiteMedSAM](https://github.com/bowang-lab/MedSAM/blob/LiteMedSAM/README.md) and [3D Slicer Plugin](https://github.com/bowang-lab/MedSAMSlicer), 10x faster than MedSAM! 
+In this derivative work, we made the following modifications:
+1. Used `matplotlib` instead of `skimage.io` for saving plots in `MedSAM_Inference.py`
+2. Copied and modified our own versions of `train_one_gpu.py` (now `main.py` in root dir) and  `train_multi_gpus.pypi` (now `main_ddp.py` in root dir)
+* `main.py` and `main_ddp.py` were re-reorganized such that all function definitions are at the beginning of the scripts.
+* The parser setup was moved to under the `if` statement, now after all function definitions. 
+* `HyperOptArgumentParser` was used instead of `ArgumentParser` due to the added ease of reading from a `.json` file. 
+3. The `MedSAM` model and custom Dataset (`SegMRIDataset` in place of `NpyDataset`) classes were moved to their own `.py` files and imported into `main.py` and `main_ddp.py` for better readability, modularity, and personal coding preference. 
+4. We aim to add Optuna functionality to `main.py` and `main_ddp.py` for automated hyperparameter optimization.
 
 
 ## Installation
