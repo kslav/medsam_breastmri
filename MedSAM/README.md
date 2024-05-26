@@ -1,7 +1,5 @@
 # MedSAM
-This README.md is modified from the official MedSAM repo README, created by Ma et al., and located at https://github.com/bowang-lab/MedSAM.
-
-To install MedSAM, clone the original MedSAM repo at https://github.com/bowang-lab/MedSAM and follow the authors' installation instructions (copied below as well for ease of access).
+This README.md is modified from the official MedSAM repo README, created by Ma et al., and located at https://github.com/bowang-lab/MedSAM. Acknowledgements and references for MedSAM provided by Ma et al. are retained at the end of this README, and the original license for conditions of redistributing their work is available at https://github.com/bowang-lab/MedSAM?tab=Apache-2.0-1-ov-file.
 
 In this derivative work, we made the following modifications:
 1. Used `matplotlib` instead of `skimage.io` for saving plots in `MedSAM_Inference.py`
@@ -11,6 +9,8 @@ In this derivative work, we made the following modifications:
 * `HyperOptArgumentParser` was used instead of `ArgumentParser` due to the added ease of reading from a `.json` file. 
 3. The `MedSAM` model and custom Dataset (`SegMRIDataset` in place of `NpyDataset`) classes were moved to their own `.py` files and imported into `main.py` and `main_ddp.py` for better readability, modularity, and personal coding preference. 
 4. We aim to add Optuna functionality to `main.py` and `main_ddp.py` for automated hyperparameter optimization.
+
+To install MedSAM, clone the original MedSAM repo at https://github.com/bowang-lab/MedSAM and follow the authors' installation instructions (copied below as well for ease of access). 
 
 
 ## Installation
@@ -51,15 +51,6 @@ Install `PyQt5` with [pip](https://pypi.org/project/PyQt5/): `pip install PyQt5 
 ```bash
 python gui.py
 ```
-
-Load the image to the GUI and specify segmentation targets by drawing bounding boxes.
-
-
-
-https://github.com/bowang-lab/MedSAM/assets/19947331/a8d94b4d-0221-4d09-a43a-1251842487ee
-
-
-
 
 
 ## Model Training
