@@ -34,11 +34,11 @@ import glob
 
 def main(args):
     ngpus_per_node = torch.cuda.device_count()
-    print("Spawning processces")
+    print("Spawning processes")
     mp.spawn(main_worker, nprocs=ngpus_per_node, args=(ngpus_per_node, args))
 
-
 def main_worker(gpu, ngpus_per_node, args):
+
     run_id = datetime.now().strftime("%Y%m%d-%H%M")
     model_save_path = join(args.work_dir, args.task_name + "-" + run_id)
     
@@ -334,7 +334,7 @@ if __name__ == "__main__":
     if args.use_wandb:
         import wandb
 
-        wandb.login()
+        #wandb.login()
         wandb.init(
             project=args.task_name,
             config={

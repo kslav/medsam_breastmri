@@ -9,6 +9,7 @@ freeze prompt image encoder
 ### setup environment ###
 import numpy as np
 import os
+import wandb
 
 join = os.path.join
 from test_tube import HyperOptArgumentParser
@@ -21,6 +22,7 @@ import monai
 from segment_anything import sam_model_registry
 from Training.model import MedSAM
 from Training.datasets import SegMRIDataset
+from Training.datasets import NpyDataset
 from torchvision import transforms
 import argparse
 import random
@@ -84,7 +86,8 @@ def main_train(args):
     best_loss = 1e10
     
     ### Establish dataset and dataloader ###
-    train_dataset = SegMRIDataset(args.train_data_csv, transform=transforms.ToTensor(),which_file='nii')
+    train_dataset = NpyDataset(args.train_data_csv, transform=transforms.ToTensor())
+    #train_dataset = SegMRIDataset(args.train_data_csv, transform=transforms.ToTensor(),which_file='nii')
     print("Number of training samples: ", train_dataset.__len__())
     train_dataloader = DataLoader(
         train_dataset,
@@ -200,7 +203,7 @@ if __name__ == "__main__":
     if args.use_wandb:
         import wandb
 
-        wandb.login()
+        #wandb.login()
         wandb.init(
             project=args.task_name,
             config={
