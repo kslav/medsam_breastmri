@@ -110,11 +110,12 @@ def main_train(args):
         scaler = torch.cuda.amp.GradScaler()
 
     for epoch in range(start_epoch, num_epochs):
+        print("Current epoch is...", epoch)
         epoch_loss = 0
         for step, (img_gt, mask_gt, boxes) in enumerate(tqdm(train_dataloader)):
             optimizer.zero_grad()
             # check which device the img, mask, and boxes are on
-            print("Devices are...", img_gt.device, mask_gt.device, boxes.device)
+            #print("Devices are...", img_gt.device, mask_gt.device, boxes.device)
             # create bounding box here that is the size of img_gt
             boxes_np = boxes.detach().cpu().numpy()
             
@@ -143,7 +144,8 @@ def main_train(args):
         epoch_loss /= step
         losses.append(epoch_loss)
         if args.use_wandb:
-            wandb.log({"epoch_loss": epoch_loss})
+            #wandb.log({"epoch_loss": epoch_loss})
+            wandb.log({"epoch": epoch, "loss": epoch_loss})
         print(f'Time: {datetime.now().strftime("%Y%m%d-%H%M")}, Epoch: {epoch}, Loss: {epoch_loss}')
         
         ### save the latest model ###
@@ -151,6 +153,7 @@ def main_train(args):
             "model": medsam_model.state_dict(),
             "optimizer": optimizer.state_dict(),
             "epoch": epoch,
+            "loss_epoch": losses,
         }
         torch.save(checkpoint, join(model_save_path, "medsam_model_latest.pth"))
         
@@ -161,6 +164,7 @@ def main_train(args):
                 "model": medsam_model.state_dict(),
                 "optimizer": optimizer.state_dict(),
                 "epoch": epoch,
+                "loss_epoch": losses,
             }
 
             torch.save(checkpoint, join(model_save_path, "medsam_model_best.pth"))
