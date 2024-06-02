@@ -29,7 +29,7 @@ class NpyDataset(Dataset):
         img_name_vec = img_name.split('_')
         mask_name_vec = mask_name.split('_')
 
-        print("img_name: ", img_name, " mask_name: ", mask_name)
+        #print("img_name: ", img_name, " mask_name: ", mask_name)
 
         #img and mask file names formatted as [case#]_[img or mask]_sli_[sli#].npy
         assert (img_name_vec[0]==mask_name_vec[0]) and (img_name_vec[2:]==mask_name_vec[2:]), "Image and mask files don't correspond!"
@@ -48,8 +48,12 @@ class NpyDataset(Dataset):
 
         if self.transform is not None:
             #(Note that the ToTensor transformation -- as self.transform -- will yield image values in range 0 to 1 ONLY for images with range [0, 255])
-            img_1024 = self.transform(img_1024.astype("float32")) #apply any transformations during training to both GT and inp
-            mask_1024 = self.transform(mask_1024.astype("float32"))
+            #img_1024 = self.transform(img_1024.astype("float32")) #apply any transformations during training to both GT and inp
+            #mask_1024 = self.transform(mask_1024.astype("float32"))
+
+            img_1024 = torch.tensor(img_1024).float()
+            mask_1024 = torch.tensor(mask_1024).long()
+            bboxes = torch.tensor(bboxes).float()
         
         #print("Image and mask shapes are ", img_1024.shape, " and ", mask_1024.shape)
         return img_1024, mask_1024, bboxes

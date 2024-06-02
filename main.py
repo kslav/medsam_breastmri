@@ -49,6 +49,7 @@ def main_train(args):
 
     ### Set up the model for training, namely load pretrained model ###
     device = torch.device(args.device)
+    print("Device is ...", device)
     sam_model = sam_model_registry[args.model_type](checkpoint=args.checkpoint) #See MedSAM_Inference.py for pretrained model attributes
     medsam_model = MedSAM(
         image_encoder=sam_model.image_encoder,
@@ -86,7 +87,10 @@ def main_train(args):
     best_loss = 1e10
     
     ### Establish dataset and dataloader ###
-    train_dataset = NpyDataset(args.train_data_csv, transform=transforms.ToTensor())
+    if args.which_dataloader=="npy":
+        train_dataset = NpyDataset(args.train_data_csv, transform=transforms.ToTensor()) #Note, bypassing ToTensor() because it rescales data, just want to cast to tensor
+    elif args.which_dataloader=="mri":
+        train_dataset = SegMRIDataset(args.train_data_csv, transform=transforms.ToTensor(),which_file='nii') #Note, bypassing ToTensor() because it rescales data, just want to cast to tensor
     #train_dataset = SegMRIDataset(args.train_data_csv, transform=transforms.ToTensor(),which_file='nii')
     print("Number of training samples: ", train_dataset.__len__())
     train_dataloader = DataLoader(
@@ -116,6 +120,7 @@ def main_train(args):
             optimizer.zero_grad()
             # check which device the img, mask, and boxes are on
             #print("Devices are...", img_gt.device, mask_gt.device, boxes.device)
+            #print("Okay printing shapes here...", img_gt.shape, mask_gt.shape)
             # create bounding box here that is the size of img_gt
             boxes_np = boxes.detach().cpu().numpy()
             
@@ -185,6 +190,7 @@ if __name__ == "__main__":
     parser.add_argument("--checkpoint", action='store',dest='checkpoint',type=str, default="work_dir/SAM/sam_vit_b_01ec64.pth")
     parser.add_argument('--random_seed', action='store', dest='random_seed', type=int, help='random number seed for numpy', default=723)
     parser.add_argument("--work_dir", action='store',dest='work_dir',type=str, default="./work_dir")
+    parser.add_argument("--which_dataloader", action='store',dest='which_dataloader',type=str, default="npy",help="[npy,mri] choose whether to load npys from folder or niftis from csv paths")
     
     # Dataloader parameters
     parser.add_argument("--num_epochs", action='store',dest='num_epochs',type=int, default=1000)

@@ -2,6 +2,7 @@
 """A dataset object for MRI data that enables compatability with PyTorch."""
 
 from torch.utils.data import Dataset
+import torch
 import nibabel as nib
 import numpy as np
 import pandas as pd
@@ -22,7 +23,7 @@ class SegMRIDataset(Dataset):
 # TRANSFORMS: NULL for now, consider rotaitons and translations
 
     # A custom Dataset class must have the following three functions
-    def __init__(self, img_dirs_csv, transform=None,which_file='dcm'):
+    def __init__(self, img_dirs_csv, transform=None,which_file='nii'):
         self.img_dirs_csv = img_dirs_csv # CSV of ground truth image and mask pairs of 2D dicoms (ah or niftis)
         self.transform = transform
         self.which_file=which_file
@@ -49,9 +50,17 @@ class SegMRIDataset(Dataset):
             #convert to numpy array
             img_gt = np.array(img_nii.dataobj)
             mask_gt = np.array(mask_nii.dataobj)
-            #print("Image and mask shapes are ", img_gt.shape, " and ", mask_gt.shape)
+            
 
         ### Process image and mask to be 3-channel and normalized ###
+
+        # normalize the image
+        lower_bound, upper_bound = np.percentile(img_gt[img_gt > 0], 0.5), np.percentile(img_gt[img_gt > 0], 99.5)
+        image_data_pre = np.clip(img_gt, lower_bound, upper_bound)
+        image_data_pre = ((image_data_pre - np.min(image_data_pre)) / (np.max(image_data_pre) - np.min(image_data_pre))* 255.0)
+        image_data_pre[img_gt == 0] = 0
+        img_gt = image_data_pre # re-name back to img_gt
+
         dims = img_gt.shape
         if len(dims) == 2:
             #img_gt = img_gt.transpose() # fix the view
@@ -78,13 +87,13 @@ class SegMRIDataset(Dataset):
         # resize the image and mask to 1024x1024 (required for inputs into SAM)
         img_1024 = transform.resize(img_3c, (1024, 1024), order=3, preserve_range=True, anti_aliasing=True)#bicubic interp
         mask_1024 = transform.resize(mask_3c, (1024, 1024), order=0, preserve_range=True, anti_aliasing=True).astype(np.uint8) #nearest neighbor interp
-
-        # normalize the image to a range of [0, 1]
-        img_1024 = (img_1024 - img_1024.min()) / np.clip(img_1024.max() - img_1024.min(), a_min=1e-8, a_max=None) 
+        #print("Image and mask shapes after preprocessing (before resize): ", img_1024.shape, " and ", mask_1024.shape)
+        # [obsolete, already done above] normalize the image to a range of [0, 1]
+        #img_1024 = (img_1024 - img_1024.min()) / np.clip(img_1024.max() - img_1024.min(), a_min=1e-8, a_max=None) 
         
         # permute the image and mask to have shape (3, H, W)
-        #img_1024 = img_1024.transpose(2, 0, 1)
-        #mask_1024 = mask_1024.transpose(2, 0, 1)
+        img_1024 = img_1024.transpose(2, 0, 1)
+        mask_1024 = mask_1024.transpose(2, 0, 1)
         bboxes = np.array([200, 200, 900, 900])
         #print("Number of unique values in mask...", np.unique(mask_1024))
         assert len(np.unique(mask_1024))<=2, "ground truth mask should have just 2 values: 0, 1"
@@ -93,8 +102,12 @@ class SegMRIDataset(Dataset):
 
         if self.transform is not None:
             #(Note that the ToTensor transformation -- as self.transform -- will yield image values in range 0 to 1 ONLY for images with range [0, 255])
-            img_1024 = self.transform(img_1024.astype("float32")) #apply any transformations during training to both GT and inp
-            mask_1024 = self.transform(mask_1024.astype("float32"))
+            #img_1024 = self.transform(img_1024.astype("float32")) #apply any transformations during training to both GT and inp
+            #mask_1024 = self.transform(mask_1024.astype("float32"))
+            img_1024 = torch.tensor(img_1024).float()
+            mask_1024 = torch.tensor(mask_1024).long()
+            bboxes = torch.tensor(bboxes).float()
+
 
         #print("Image and mask shapes are ", img_1024.shape, " and ", mask_1024.shape)
         return img_1024, mask_1024, bboxes # each "item" is a pair of ground truth image and mask with shape [3,H,W]; dataloader automatically adds batch dim out front
