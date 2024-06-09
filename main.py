@@ -116,6 +116,7 @@ def main_train(args):
     for epoch in range(start_epoch, num_epochs):
         print("Current epoch is...", epoch)
         epoch_loss = 0
+        img_array = []
         for step, (img_gt, mask_gt, boxes) in enumerate(tqdm(train_dataloader)):
             optimizer.zero_grad()
             # check which device the img, mask, and boxes are on
@@ -146,11 +147,24 @@ def main_train(args):
             epoch_loss += loss.item()
             iter_num += 1
 
+            # log images in wandb every n steps (in this case 50)
+            if args.use_wandb and step%50==0: 
+                item_idx = np.random.randint(0,args.batch_size)
+                img_array = [img_gt[item_idx,...], mask_gt[item_idx,...], medsam_pred[item_idx,...], boxes[item_idx,...]] #when exiting the for loop, this will contain stuff from last step
+                mask_np = img_array[1].detach().cpu().numpy()
+                img_np = img_array[0].permute(1, 2, 0).detach().cpu().numpy()
+                pred_np = img_array[2].detach().cpu().numpy()
+                mask_dict_pred = {"mask_data": np.squeeze(pred_np),"class_labels": {0: "background", 1: "object"}}
+                mask_dict_gt = {"mask_data": np.squeeze(mask_np),"class_labels": {0: "background", 1: "object"}}
+                wandb.log({"ground_truth_with_mask": wandb.Image(img_np, masks={"ground truth": mask_dict_gt, "prediction": mask_dict_pred})})
+
         epoch_loss /= step
         losses.append(epoch_loss)
+        # log epoch-level metrics here
         if args.use_wandb:
-            #wandb.log({"epoch_loss": epoch_loss})
-            wandb.log({"epoch": epoch, "loss": epoch_loss})
+            # Log the image with the mask overlay
+            wandb.log({"loss": epoch_loss})
+
         print(f'Time: {datetime.now().strftime("%Y%m%d-%H%M")}, Epoch: {epoch}, Loss: {epoch_loss}')
         
         ### save the latest model ###
