@@ -43,7 +43,9 @@ class NpyDataset(Dataset):
         #load the mask
         mask_1024 = np.load(self.mask_path_files[index], "r", allow_pickle=True)  # multiple labels [0, 1,4,5...], (256,256)
         # convert the shape to (3, H, W)
-
+        img_1024 = img_1024.transpose(2, 0, 1)
+        mask_1024 = mask_1024.transpose(2, 0, 1)
+        
         #fixed bounding box
         bboxes = np.array([200, 200, 900, 900])
 
