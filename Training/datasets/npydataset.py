@@ -1,6 +1,7 @@
 
 from skimage import io, transform
 from torch.utils.data import Dataset
+import torch
 import os
 import glob
 import numpy as np
@@ -21,7 +22,7 @@ class NpyDataset(Dataset):
         return len(self.mask_path_files)
 
     def __getitem__(self, index):
-        # load npy image (1024, 1024, 3), [0,1]
+        # load npy image (1024, 1024, 3), [0,1], preprocessed using /utils/convert_3Dto2D.py
         img_name = os.path.basename(self.img_path_files[index])
         mask_name = os.path.basename(self.mask_path_files[index])
 
