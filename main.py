@@ -148,22 +148,32 @@ def main_train(args):
             iter_num += 1
 
             # log images in wandb every n steps (in this case 50)
-            if args.use_wandb and step%50==0: 
-                item_idx = np.random.randint(0,args.batch_size)
-                img_array = [img_gt[item_idx,...], mask_gt[item_idx,...], medsam_pred[item_idx,...], boxes[item_idx,...]] #when exiting the for loop, this will contain stuff from last step
+            if args.use_wandb and step%args.log_frequency==0: 
+                # pick a random image in the batch
+                item_idx = np.random.randint(0,args.batch_size) 
+                # get the image, gt mask, and pred mask at item_idx and store in an array for easy access
+                img_array = [img_gt[item_idx,...], mask_gt[item_idx,...], medsam_pred[item_idx,...], boxes[item_idx,...]]
+                # get everything off the GPU to CPU and convert to numpy
                 mask_np = img_array[1].detach().cpu().numpy()
                 img_np = img_array[0].permute(1, 2, 0).detach().cpu().numpy()
                 pred_np = img_array[2].detach().cpu().numpy()
+
+                # Now make dictionaries to store the mask data in the format required by WandB
                 mask_dict_pred = {"mask_data": np.squeeze(pred_np),"class_labels": {0: "background", 1: "object"}}
                 mask_dict_gt = {"mask_data": np.squeeze(mask_np),"class_labels": {0: "background", 1: "object"}}
-                wandb.log({"ground_truth_with_mask": wandb.Image(img_np, masks={"ground truth": mask_dict_gt, "prediction": mask_dict_pred})})
+                # Log the image with mask overlays using wandb.log
+                wandb.log({"ground_truth_mask": wandb.Image(img_np, masks={"ground truth": mask_dict_gt})})
+                wandb.log({"pred_mask": wandb.Image(img_np, masks={"prediction": mask_dict_pred})})
+
+                # Log the step-level loss here:
+                wandb.log({"loss_stepwise": loss.item()})
 
         epoch_loss /= step
         losses.append(epoch_loss)
-        # log epoch-level metrics here
+        # Log epoch-level metrics here
         if args.use_wandb:
             # Log the image with the mask overlay
-            wandb.log({"loss": epoch_loss})
+            wandb.log({"loss_epoch": epoch_loss})
 
         print(f'Time: {datetime.now().strftime("%Y%m%d-%H%M")}, Epoch: {epoch}, Loss: {epoch_loss}')
         
@@ -214,10 +224,14 @@ if __name__ == "__main__":
     # Optimizer parameters
     parser.add_argument("--weight_decay", action='store',dest='weight_decay',type=float, default=0.01, help="weight decay (default: 0.01)")
     parser.add_argument("--lr", action='store',dest='lr',type=float, default=0.0001, metavar="LR", help="learning rate (absolute lr)")
-    parser.add_argument("--use_wandb", action='store', dest='use_wandb', type=bool,default=False, help="use wandb to monitor training")
     parser.add_argument("--use_amp", action='store', dest='use_amp', type=bool,default=False, help="use amp")
     parser.add_argument("--resume", action='store',dest='resume',type=str, default="", help="Resuming training from checkpoint")
     parser.add_argument("--device",action='store',dest='device', type=str, default="cuda:0")
+
+    # Logging parameters
+    parser.add_argument("--use_wandb", action='store', dest='use_wandb', type=bool,default=False, help="use wandb to monitor training")
+    parser.add_argument("--log_frequency", action='store',dest='log_frequency',type=int, default=500, help="define N for logging every N steps to save on memory")
+
     args = parser.parse_args()
 
     # set seeds
