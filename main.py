@@ -172,7 +172,7 @@ def main_train(args):
                 # wandb.log({"pred_mask": wandb.Image(img_np, masks={"prediction": mask_dict_pred})})
 
                 # Testing out our make_fig_for_logging(img,mask_arr) function
-                mask_arr_forFig = [mask_np[...,None],pred_np[...,None]]
+                mask_arr_forFig = [mask_np,pred_np]
                 fig = make_image_for_logging(img_np,mask_arr_forFig,box)
 
                 # Log the figure we made

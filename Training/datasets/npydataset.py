@@ -49,7 +49,7 @@ class NpyDataset(Dataset):
         mask_1024 = mask_1024.transpose(2, 0, 1)
         
         #fixed bounding box
-        bboxes = np.array([200, 200, 900, 900])
+        bboxes = np.array([0, 0, 1024, 1024])
 
         if self.transform is not None:
             # FIXME: Right now this code block just converts the npy arrays to tensors, no matter what transform you feed it
