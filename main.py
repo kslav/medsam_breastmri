@@ -242,7 +242,7 @@ def make_image_for_logging(img, mask_arr,box):
     ax[0].imshow(img)
     show_mask(mask_arr[0], ax[0])
     ax[0].set_title("Input Image and Ground Truth")
-    ax[1].imshow(img_3c)
+    ax[1].imshow(img)
     show_mask(mask_arr[1], ax[1])
     show_box(box, ax[1])
     ax[1].set_title("MedSAM Segmentation")
