@@ -10,7 +10,7 @@ Currently, MedSAM (and SAM) requires a bounding box that identifies the region i
 
 PRELIMINARY RESULTS:
 
-<img src="assets/Figure2.png",width="800">
+<img src="assets/Figure2.png" width="800">
 
 *This is a work in progress and is continuously updated*
 
