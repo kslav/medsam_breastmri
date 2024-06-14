@@ -8,6 +8,10 @@ MOTIVATION: Segmentation remains an important task in medical image analysis for
 
 Currently, MedSAM (and SAM) requires a bounding box that identifies the region in which the object of interest lies. This prompt generation, however, still necessitate the involvement of a radiologist to identify breast lesions and delinate bounding boxes for each slice in an imaging volume. To circumvent this step, we are investigating whether MedSAM can be fine-tuned on breast MRI data with a fixed bounding box that includes the entire breast tissue. 
 
+PRELIMINARY RESULTS:
+
+<img src="assets/Figure2.png",width="800">
+
 *This is a work in progress and is continuously updated*
 
 References:
