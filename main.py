@@ -85,6 +85,7 @@ def main_train(args):
     num_epochs = args.num_epochs
     iter_num = 0
     losses = []
+    val_losses = []
     best_loss = 1e10
     
     ### Establish dataset and dataloader ###
@@ -96,7 +97,8 @@ def main_train(args):
         val_dataset = SegMRIDataset(args.train_data_paths, transform=transforms.ToTensor(),which_file='nii')    
 
     print("Number of training samples: ", train_dataset.__len__())
-    train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=False,)
+    train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=False)
+    val_dataloader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers, pin_memory=False,)
 
     ### Training loop ###
     start_epoch = 0
