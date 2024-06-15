@@ -59,13 +59,13 @@ if path_2d is not None:
     # move validation and testing data to corresponding folders
     for name in validation_names:
         name_vec = name.split('_')
-        img_name = name_vec[0]+"_img_"+name_vec[2]+"_"+name_vec[3]+img_suffix
+        img_name = name_vec[0]+"_img_"+name_vec[2]+"_"+name_vec[3]
         os.rename(join(img_path, img_name), join(validation_path, 'images', img_name))
         os.rename(join(gt_path, name), join(validation_path, 'labels', name))
 
     for name in test_names:
         name_vec = name.split('_')
-        img_name = name_vec[0]+"_img_"+name_vec[2]+"_"+name_vec[3]+img_suffix
+        img_name = name_vec[0]+"_img_"+name_vec[2]+"_"+name_vec[3]
         os.rename(join(img_path, img_name), join(testing_path, 'images', img_name))
         os.rename(join(gt_path, name), join(testing_path, 'labels', name))
 
