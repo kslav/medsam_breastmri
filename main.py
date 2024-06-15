@@ -169,8 +169,11 @@ def main_train(args):
 
                 # Log the figure we made
                 wandb.log({"Train_Comparison": wandb.Image(fig)})
-                # Log the step-level loss here:
+                # Log the step-level metrics here:
+                train_dice = np.sum(pred_np[mask_np==1])*2.0 / (np.sum(pred_np) + np.sum(mask_np))
                 wandb.log({"train_loss_step": loss.item()})
+                wandb.log({"train_dice_step": train_dice})
+                
         
         # log epoch-level training metrics:
         epoch_loss /= step
@@ -186,10 +189,14 @@ def main_train(args):
         with torch.no_grad():
             for step, (img_gt_val, mask_gt_val, boxes_val) in enumerate(tqdm(val_dataloader)):
                 boxes_np = boxes_val.detach().cpu().numpy()
+                img_gt_val, mask_gt_val = img_gt_val.to(device), mask_gt_val.to(device)
                 medsam_pred = medsam_model(img_gt_val, boxes_np) #prediction
 
                 val_loss = seg_loss(medsam_pred, mask_gt_val) + ce_loss(medsam_pred, mask_gt_val.float()) #loss
                 val_epoch_loss += val_loss.item()
+
+                #compute dice loss only as our quality metric:
+
 
                 if args.use_wandb and step%args.log_frequency==0: 
                     # pick a random image in the batch
@@ -200,8 +207,8 @@ def main_train(args):
                     box = np.squeeze(boxes_np[item_idx,...])
                     # get everything off the GPU to CPU and convert to numpy
                     img_np = img.permute(1, 2, 0).detach().cpu().numpy()
-                    mask_np = np.squeeze(mask_arr[0].detach().cpu().numpy())
-                    pred_np = np.squeeze(mask_arr[1].detach().cpu().numpy())
+                    mask_np = np.squeeze(mask_arr[0].detach().cpu().numpy()) #ground truth
+                    pred_np = np.squeeze(mask_arr[1].detach().cpu().numpy()) # prediction
 
                     # Testing out our make_fig_for_logging(img,mask_arr) function
                     mask_arr_forFig = [mask_np,pred_np]
@@ -209,8 +216,11 @@ def main_train(args):
 
                     # Log the figure we made
                     wandb.log({"Val_Comparison": wandb.Image(fig)})
-                    # Log the step-level loss here:
+                    # Log the step-level metrics here:
+                    val_dice = np.sum(pred_np[mask_np==1])*2.0 / (np.sum(pred_np) + np.sum(mask_np))
                     wandb.log({"val_loss_step": val_loss.item()})
+                    wandb.log({"val_dice_step": val_dice})
+
 
             # log epoch-level validation metrics:
             val_epoch_loss /= step
