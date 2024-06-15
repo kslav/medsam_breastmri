@@ -58,8 +58,6 @@ def main_train(args):
         image_encoder=sam_model.image_encoder,
         mask_decoder=sam_model.mask_decoder,
         prompt_encoder=sam_model.prompt_encoder).to(device)
-    
-    medsam_model.train() # set mode of medsam_model to train
 
     ### Set optimizer ###
     img_mask_encdec_params = list(medsam_model.image_encoder.parameters()) + list(medsam_model.mask_decoder.parameters())
@@ -91,18 +89,14 @@ def main_train(args):
     
     ### Establish dataset and dataloader ###
     if args.which_dataloader=="npy":
-        train_dataset = NpyDataset(args.train_data_csv, transform=transforms.ToTensor()) #Note, bypassing ToTensor() because it rescales data, just want to cast to tensor
+        train_dataset = NpyDataset(args.train_data_paths, transform=transforms.ToTensor()) #Note, bypassing ToTensor() because it rescales data, just want to cast to tensor
+        val_dataset = NpyDataset(args.val_data_paths, transform=transforms.ToTensor()) #Note, bypassing ToTensor() because it rescales data, just want to cast to tensor
     elif args.which_dataloader=="mri":
-        train_dataset = SegMRIDataset(args.train_data_csv, transform=transforms.ToTensor(),which_file='nii') #Note, bypassing ToTensor() because it rescales data, just want to cast to tensor
-    #train_dataset = SegMRIDataset(args.train_data_csv, transform=transforms.ToTensor(),which_file='nii')
+        train_dataset = SegMRIDataset(args.train_data_paths, transform=transforms.ToTensor(),which_file='nii') #Note, bypassing ToTensor() because it rescales data, just want to cast to tensor
+        val_dataset = SegMRIDataset(args.train_data_paths, transform=transforms.ToTensor(),which_file='nii')    
+
     print("Number of training samples: ", train_dataset.__len__())
-    train_dataloader = DataLoader(
-        train_dataset,
-        batch_size=args.batch_size,
-        shuffle=True,
-        num_workers=args.num_workers,
-        pin_memory=False,
-    )
+    train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=False,)
 
     ### Training loop ###
     start_epoch = 0
@@ -119,8 +113,12 @@ def main_train(args):
     for epoch in range(start_epoch, num_epochs):
         print("Current epoch is...", epoch)
         epoch_loss = 0
-        img_array = []
+        val_epoch_loss=0
+
+        ### TRAINING STEP ### 
+        medsam_model.train()
         for step, (img_gt, mask_gt, boxes) in enumerate(tqdm(train_dataloader)):
+
             optimizer.zero_grad()
             # check which device the img, mask, and boxes are on
             #print("Devices are...", img_gt.device, mask_gt.device, boxes.device)
@@ -163,38 +161,70 @@ def main_train(args):
                 mask_np = np.squeeze(mask_arr[0].detach().cpu().numpy())
                 pred_np = np.squeeze(mask_arr[1].detach().cpu().numpy())
 
-
-                # # Now make dictionaries to store the mask data in the format required by WandB
-                # mask_dict_pred = {"mask_data": pred_np,"class_labels": {0: "background", 1: "object"}}
-                # mask_dict_gt = {"mask_data": mask_np,"class_labels": {0: "background", 1: "object"}}
-                # # Log the image with mask overlays using wandb.log
-                # wandb.log({"ground_truth_mask": wandb.Image(img_np, masks={"ground truth": mask_dict_gt})})
-                # wandb.log({"pred_mask": wandb.Image(img_np, masks={"prediction": mask_dict_pred})})
-
                 # Testing out our make_fig_for_logging(img,mask_arr) function
                 mask_arr_forFig = [mask_np,pred_np]
                 fig = make_image_for_logging(img_np,mask_arr_forFig,box)
 
                 # Log the figure we made
-                wandb.log({"Comparison": wandb.Image(fig)})
+                wandb.log({"Train_Comparison": wandb.Image(fig)})
                 # Log the step-level loss here:
-                wandb.log({"loss_stepwise": loss.item()})
-
+                wandb.log({"train_loss_step": loss.item()})
+        
+        # log epoch-level training metrics:
         epoch_loss /= step
         losses.append(epoch_loss)
         # Log epoch-level metrics here
         if args.use_wandb:
             # Log the image with the mask overlay
-            wandb.log({"loss_epoch": epoch_loss})
-
+            wandb.log({"train_loss_epoch": epoch_loss})
         print(f'Time: {datetime.now().strftime("%Y%m%d-%H%M")}, Epoch: {epoch}, Loss: {epoch_loss}')
-        
+
+        ### VALIDATION STEP ###
+        medsam_model.eval()
+        with torch.no_grad():
+            for step, (img_gt_val, mask_gt_val, boxes_val) in enumerate(tqdm(val_dataloader)):
+                boxes_np = boxes_val.detach().cpu().numpy()
+                medsam_pred = medsam_model(img_gt_val, boxes_np) #prediction
+
+                val_loss = seg_loss(medsam_pred, mask_gt_val) + ce_loss(medsam_pred, mask_gt_val.float()) #loss
+                val_epoch_loss += val_loss.item()
+
+                if args.use_wandb and step%args.log_frequency==0: 
+                    # pick a random image in the batch
+                    item_idx = np.random.randint(0,args.batch_size) 
+                    # get the image, gt mask, and pred mask at item_idx and store in an array for easy access
+                    img = img_gt_val[item_idx,...] 
+                    mask_arr = [mask_gt_val[item_idx,...], medsam_pred[item_idx,...]]
+                    box = np.squeeze(boxes_np[item_idx,...])
+                    # get everything off the GPU to CPU and convert to numpy
+                    img_np = img.permute(1, 2, 0).detach().cpu().numpy()
+                    mask_np = np.squeeze(mask_arr[0].detach().cpu().numpy())
+                    pred_np = np.squeeze(mask_arr[1].detach().cpu().numpy())
+
+                    # Testing out our make_fig_for_logging(img,mask_arr) function
+                    mask_arr_forFig = [mask_np,pred_np]
+                    fig = make_image_for_logging(img_np,mask_arr_forFig,box)
+
+                    # Log the figure we made
+                    wandb.log({"Val_Comparison": wandb.Image(fig)})
+                    # Log the step-level loss here:
+                    wandb.log({"val_loss_step": val_loss.item()})
+
+            # log epoch-level validation metrics:
+            val_epoch_loss /= step
+            val_losses.append(val_epoch_loss)
+            # Log epoch-level metrics here
+            if args.use_wandb:
+                # Log the image with the mask overlay
+                wandb.log({"val_loss_epoch": val_epoch_loss})
+            
         ### save the latest model ###
         checkpoint = {
             "model": medsam_model.state_dict(),
             "optimizer": optimizer.state_dict(),
             "epoch": epoch,
-            "loss_epoch": losses,
+            "train_loss_epoch": losses,
+            "val_loss_epoch": val_losses,
         }
         torch.save(checkpoint, join(model_save_path, "medsam_model_latest.pth"))
         
@@ -206,11 +236,12 @@ def main_train(args):
                 "optimizer": optimizer.state_dict(),
                 "epoch": epoch,
                 "loss_epoch": losses,
+                "val_loss_epoch": val_losses,
             }
 
             torch.save(checkpoint, join(model_save_path, "medsam_model_best.pth"))
 
-### The following three functions are for visualization purposes in WandB
+### The following three functions are for visualizating figures in WandB
 
 def show_mask(mask, ax, random_color=False):
     # Borrowed from MedSAM_Inference.py by the original authors of MedSAM, Ma et al.
@@ -265,16 +296,18 @@ if __name__ == "__main__":
     description_str = 'fine tune medsam'
     parser = HyperOptArgumentParser(usage=usage_str, description=description_str, formatter_class=argparse.ArgumentDefaultsHelpFormatter, strategy='grid_search')
     
+    # Initialization parameters
     parser.json_config('--config', default=None)
-    parser.add_argument("--train_data_csv", action='store',dest='train_data_csv',type=str, default="data/npy/CT_Abd", help="path to CSV with file paths (img and mask GT)")
     parser.add_argument("--task_name", action='store',dest='task_name',type=str, default="MedSAM-ViT-B")
     parser.add_argument("--model_type", action='store',dest='model_type',type=str, default="vit_b")
     parser.add_argument("--checkpoint", action='store',dest='checkpoint',type=str, default="work_dir/SAM/sam_vit_b_01ec64.pth")
     parser.add_argument('--random_seed', action='store', dest='random_seed', type=int, help='random number seed for numpy', default=723)
     parser.add_argument("--work_dir", action='store',dest='work_dir',type=str, default="./work_dir")
-    parser.add_argument("--which_dataloader", action='store',dest='which_dataloader',type=str, default="npy",help="[npy,mri] choose whether to load npys from folder or niftis from csv paths")
     
     # Dataloader parameters
+    parser.add_argument("--which_dataloader", action='store',dest='which_dataloader',type=str, default="npy",help="[npy,mri] choose whether to load npys from folder or niftis from csv paths")
+    parser.add_argument("--train_data_paths", action='store',dest='train_data_paths',type=str, default="", help="path to dir or CSV with file paths (img and mask GT)")
+    parser.add_argument("--val_data_paths", action='store',dest='val_data_paths',type=str, default="", help="path to dir or CSV with file paths (img and mask GT)")
     parser.add_argument("--num_epochs", action='store',dest='num_epochs',type=int, default=1000)
     parser.add_argument("--batch_size", action='store',dest='batch_size',type=int, default=2)
     parser.add_argument("--num_workers", action='store',dest='num_workers', type=int, default=0)
@@ -305,7 +338,8 @@ if __name__ == "__main__":
             config={
                 "lr": args.lr,
                 "batch_size": args.batch_size,
-                "data_path": args.train_data_csv,
+                "train_data_path": args.train_data_paths,
+                "val_data_path": args.val_data_paths,
                 "model_type": args.model_type,
             },
         )
