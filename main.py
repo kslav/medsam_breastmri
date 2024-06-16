@@ -168,6 +168,7 @@ def main_train(args):
                     mask_np = np.squeeze(mask_gt_idx.detach().cpu().numpy())
 
                     # convert the medsam_pred to [0,1] before moving to cpu and converting to numpy
+                    # (See MedSAM/MedSAM_Inference.py for reference)
                     pred_sig = torch.sigmoid(medsam_pred_idx[None,...])
                     pred_sig_np = pred_sig.squeeze().cpu().numpy()
                     pred_np = (pred_sig_np > 0.5).astype(np.uint8)
@@ -232,7 +233,7 @@ def main_train(args):
                     fig = make_image_for_logging(img_np,mask_arr_forFig,box)
 
                     # compute dice score as our quality metric
-                    val_dice = np.sum(pred_np[mask_np==1])*2.0 / (np.sum(pred_np) + torch.sum(mask_np))
+                    val_dice = np.sum(pred_np[mask_np==1])*2.0 / (np.sum(pred_np) + np.sum(mask_np))
 
                     # Log the figure we made
                     wandb.log({"Val_Comparison": wandb.Image(fig)})
