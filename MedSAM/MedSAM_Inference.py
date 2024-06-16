@@ -133,6 +133,7 @@ with torch.no_grad():
     image_embedding = medsam_model.image_encoder(img_1024_tensor)  # (1, 256, 64, 64)
 
 medsam_seg = medsam_inference(medsam_model, image_embedding, box_1024, H, W)
+torch.save(medsam_seg, join(args.seg_path, "seg_wholeBB.pt"))
 plt.imsave(
     join(args.seg_path, "seg_wholeBB_" + os.path.basename(args.data_path)),
     medsam_seg)

@@ -18,6 +18,7 @@ from skimage import transform
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
+import torch.nn.functional as F
 import monai
 from segment_anything import sam_model_registry
 from Training.model import MedSAM
@@ -150,29 +151,41 @@ def main_train(args):
             epoch_loss += loss.item()
             iter_num += 1
 
-            # log images in wandb every n steps (in this case 50)
+            # log images in wandb every n steps 
             if args.use_wandb and step%args.log_frequency==0: 
-                # pick a random image in the batch
-                item_idx = np.random.randint(0,args.batch_size) 
-                # get the image, gt mask, and pred mask at item_idx and store in an array for easy access
-                img = img_gt[item_idx,...] 
-                mask_arr = [mask_gt[item_idx,...], medsam_pred[item_idx,...]]
-                box = np.squeeze(boxes_np[item_idx,...])
-                # get everything off the GPU to CPU and convert to numpy
-                img_np = img.permute(1, 2, 0).detach().cpu().numpy()
-                mask_np = np.squeeze(mask_arr[0].detach().cpu().numpy())
-                pred_np = np.squeeze(mask_arr[1].detach().cpu().numpy())
+                with torch.no_grad():
+                    # pick a random image in the batch
+                    item_idx = np.random.randint(0,args.batch_size) 
+                    
+                    # get the image and gt mask
+                    img_idx = img_gt[item_idx,...]
+                    mask_gt_idx = mask_gt[item_idx,...]
+                    medsam_pred_idx = medsam_pred[item_idx,...] 
 
-                # Testing out our make_fig_for_logging(img,mask_arr) function
-                mask_arr_forFig = [mask_np,pred_np]
-                fig = make_image_for_logging(img_np,mask_arr_forFig,box)
+                    # move img and mask_gt to cpu and convert to numpy
+                    box = np.squeeze(boxes_np[item_idx,...])
+                    img_np = img_idx.permute(1, 2, 0).detach().cpu().numpy()
+                    mask_np = np.squeeze(mask_gt_idx.detach().cpu().numpy())
 
-                # Log the figure we made
-                wandb.log({"Train_Comparison": wandb.Image(fig)})
-                # Log the step-level metrics here:
-                train_dice = np.sum(pred_np[mask_np==1])*2.0 / (np.sum(pred_np) + np.sum(mask_np))
-                wandb.log({"train_loss_step": loss.item()})
-                wandb.log({"train_dice_step": train_dice})
+                    # convert the medsam_pred to [0,1] before moving to cpu and converting to numpy
+                    pred_sig = torch.sigmoid(medsam_pred_idx[None,...])
+                    pred_sig_np = pred_sig.squeeze().cpu().numpy()
+                    pred_np = (pred_sig_np > 0.5).astype(np.uint8)
+
+
+                    # make figure for logging
+                    mask_arr_forFig = [mask_np,pred_np]
+                    fig = make_image_for_logging(img_np,mask_arr_forFig,box)
+
+                    # compute dice score as our quality metric
+                    #FOR DEBUG: print("unique vals in pred_np are ", np.unique(pred_np))
+                    #FOR DEBUG: print("unique vals in mask_gt are ", np.unique(mask_np))
+                    train_dice = np.sum(pred_np[mask_np==1])*2.0 / (np.sum(pred_np) + np.sum(mask_np))
+                    # Log the figure we made
+                    wandb.log({"Train_Comparison": wandb.Image(fig)})
+                    # Log the step-level metrics here:
+                    wandb.log({"train_loss_step": loss.item()})
+                    wandb.log({"train_dice_step": train_dice})
                 
         
         # log epoch-level training metrics:
@@ -181,7 +194,7 @@ def main_train(args):
         # Log epoch-level metrics here
         if args.use_wandb:
             # Log the image with the mask overlay
-            wandb.log({"train_loss_epoch": epoch_loss})
+            wandb.log({"epoch": epoch, "train_loss_epoch": epoch_loss})
         print(f'Time: {datetime.now().strftime("%Y%m%d-%H%M")}, Epoch: {epoch}, Loss: {epoch_loss}')
 
         ### VALIDATION STEP ###
@@ -195,29 +208,35 @@ def main_train(args):
                 val_loss = seg_loss(medsam_pred, mask_gt_val) + ce_loss(medsam_pred, mask_gt_val.float()) #loss
                 val_epoch_loss += val_loss.item()
 
-                #compute dice loss only as our quality metric:
-
-
                 if args.use_wandb and step%args.log_frequency==0: 
                     # pick a random image in the batch
                     item_idx = np.random.randint(0,args.batch_size) 
-                    # get the image, gt mask, and pred mask at item_idx and store in an array for easy access
-                    img = img_gt_val[item_idx,...] 
-                    mask_arr = [mask_gt_val[item_idx,...], medsam_pred[item_idx,...]]
-                    box = np.squeeze(boxes_np[item_idx,...])
-                    # get everything off the GPU to CPU and convert to numpy
-                    img_np = img.permute(1, 2, 0).detach().cpu().numpy()
-                    mask_np = np.squeeze(mask_arr[0].detach().cpu().numpy()) #ground truth
-                    pred_np = np.squeeze(mask_arr[1].detach().cpu().numpy()) # prediction
+                    
+                    # get the image and gt mask
+                    img_idx = img_gt_val[item_idx,...]
+                    mask_gt_idx = mask_gt_val[item_idx,...]
+                    medsam_pred_idx = medsam_pred[item_idx,...] 
 
-                    # Testing out our make_fig_for_logging(img,mask_arr) function
+                    # move img and mask_gt to cpu and convert to numpy
+                    box = np.squeeze(boxes_np[item_idx,...])
+                    img_np = img_idx.permute(1, 2, 0).detach().cpu().numpy()
+                    mask_np = np.squeeze(mask_gt_idx.detach().cpu().numpy())
+
+                    # convert the medsam_pred to [0,1] before moving to cpu and converting to numpy
+                    pred_sig = torch.sigmoid(medsam_pred_idx[None,...])
+                    pred_sig_np = pred_sig.squeeze().cpu().numpy()
+                    pred_np = (pred_sig_np > 0.5).astype(np.uint8)
+
+                    # make figure for logging
                     mask_arr_forFig = [mask_np,pred_np]
                     fig = make_image_for_logging(img_np,mask_arr_forFig,box)
+
+                    # compute dice score as our quality metric
+                    val_dice = np.sum(pred_np[mask_np==1])*2.0 / (np.sum(pred_np) + torch.sum(mask_np))
 
                     # Log the figure we made
                     wandb.log({"Val_Comparison": wandb.Image(fig)})
                     # Log the step-level metrics here:
-                    val_dice = np.sum(pred_np[mask_np==1])*2.0 / (np.sum(pred_np) + np.sum(mask_np))
                     wandb.log({"val_loss_step": val_loss.item()})
                     wandb.log({"val_dice_step": val_dice})
 
@@ -253,7 +272,7 @@ def main_train(args):
 
             torch.save(checkpoint, join(model_save_path, "medsam_model_best.pth"))
 
-### The following three functions are for visualizating figures in WandB
+### The following four functions are for visualizating figures in WandB
 
 def show_mask(mask, ax, random_color=False):
     # Borrowed from MedSAM_Inference.py by the original authors of MedSAM, Ma et al.
@@ -261,7 +280,7 @@ def show_mask(mask, ax, random_color=False):
     if random_color:
         color = np.concatenate([np.random.random(3), np.array([0.6])], axis=0)
     else:
-        color = np.array([251 / 255, 252 / 255, 30 / 255, 0.6])
+        color = np.array([255 / 255, 0 / 255, 0 / 255, 0.6])
     h, w = mask.shape[-2:]
     mask_image = mask.reshape(h, w, 1) * color.reshape(1, 1, -1)
     ax.imshow(mask_image)
