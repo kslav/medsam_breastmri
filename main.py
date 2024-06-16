@@ -173,15 +173,16 @@ def main_train(args):
                     pred_sig_np = pred_sig.squeeze().cpu().numpy()
                     pred_np = (pred_sig_np > 0.5).astype(np.uint8)
 
+                    # compute the dice score
+                    train_dice = np.sum(pred_np[mask_np==1])*2.0 / (np.sum(pred_np) + np.sum(mask_np))
 
                     # make figure for logging
                     mask_arr_forFig = [mask_np,pred_np]
-                    fig = make_image_for_logging(img_np,mask_arr_forFig,box)
+                    fig = make_image_for_logging(img_np,mask_arr_forFig,box,train_dice)
 
                     # compute dice score as our quality metric
                     #FOR DEBUG: print("unique vals in pred_np are ", np.unique(pred_np))
                     #FOR DEBUG: print("unique vals in mask_gt are ", np.unique(mask_np))
-                    train_dice = np.sum(pred_np[mask_np==1])*2.0 / (np.sum(pred_np) + np.sum(mask_np))
                     # Log the figure we made
                     wandb.log({"Train_Comparison": wandb.Image(fig)})
                     # Log the step-level metrics here:
@@ -228,12 +229,12 @@ def main_train(args):
                     pred_sig_np = pred_sig.squeeze().cpu().numpy()
                     pred_np = (pred_sig_np > 0.5).astype(np.uint8)
 
-                    # make figure for logging
-                    mask_arr_forFig = [mask_np,pred_np]
-                    fig = make_image_for_logging(img_np,mask_arr_forFig,box)
-
                     # compute dice score as our quality metric
                     val_dice = np.sum(pred_np[mask_np==1])*2.0 / (np.sum(pred_np) + np.sum(mask_np))
+
+                    # make figure for logging
+                    mask_arr_forFig = [mask_np,pred_np]
+                    fig = make_image_for_logging(img_np,mask_arr_forFig,box,val_dice)
 
                     # Log the figure we made
                     wandb.log({"Val_Comparison": wandb.Image(fig)})
@@ -242,13 +243,13 @@ def main_train(args):
                     wandb.log({"val_dice_step": val_dice})
 
 
-            # log epoch-level validation metrics:
-            val_epoch_loss /= step
-            val_losses.append(val_epoch_loss)
-            # Log epoch-level metrics here
-            if args.use_wandb:
-                # Log the image with the mask overlay
-                wandb.log({"val_loss_epoch": val_epoch_loss})
+        # log epoch-level validation metrics:
+        val_epoch_loss /= step
+        val_losses.append(val_epoch_loss)
+        # Log epoch-level metrics here
+        if args.use_wandb:
+            # Log the image with the mask overlay
+            wandb.log({"val_loss_epoch": val_epoch_loss})
             
         ### save the latest model ###
         checkpoint = {
@@ -293,7 +294,7 @@ def show_box(box, ax):
     w, h = box[2] - box[0], box[3] - box[1]
     ax.add_patch(plt.Rectangle((x0, y0), w, h, edgecolor="blue", facecolor=(0, 0, 0, 0), lw=2))
 
-def make_image_for_logging(img, mask_arr,box):
+def make_image_for_logging(img, mask_arr,box,dice_score):
     # PURPOSE: To design a figure where we have the image with ground truth mask overlayed on the left
     # and the prediction mask overlayed on the right, side by side. Once we've made this image, we store
     # it in the buffer, retrieve it from the buffer, and then log it with WandB.
@@ -308,7 +309,7 @@ def make_image_for_logging(img, mask_arr,box):
     ax[1].imshow(img)
     show_mask(mask_arr[1], ax[1])
     show_box(box, ax[1])
-    ax[1].set_title("MedSAM Segmentation")
+    ax[1].set_title("MedSAM Segmentation - DICE={dice}".format(dice=dice_score))
     plt.tight_layout()
 
     buf = BytesIO()  # create a BytesIO buffer
