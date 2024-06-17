@@ -8,10 +8,10 @@
 	"work_dir":"/cbica/home/slavkovk/project_medsam_testing/Outputs",
 	"num_epochs": 20,
 	"batch_size": 3,
-	"lr": 0.001,
+	"lr": 0.0001,
 	"num_workers": 2,
 	"use_wandb": true,
-	"use_amp": false,
+	"use_amp": true,
 	"device": "cuda:0",
 	"which_dataloader": "npy"
 

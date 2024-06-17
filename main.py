@@ -178,7 +178,7 @@ def main_train(args):
 
                     # make figure for logging
                     mask_arr_forFig = [mask_np,pred_np]
-                    fig = make_image_for_logging(img_np,mask_arr_forFig,box,train_dice)
+                    fig = make_image_for_logging(img_np,mask_arr_forFig,box,round(train_dice,3))
 
                     # compute dice score as our quality metric
                     #FOR DEBUG: print("unique vals in pred_np are ", np.unique(pred_np))
@@ -234,7 +234,7 @@ def main_train(args):
 
                     # make figure for logging
                     mask_arr_forFig = [mask_np,pred_np]
-                    fig = make_image_for_logging(img_np,mask_arr_forFig,box,val_dice)
+                    fig = make_image_for_logging(img_np,mask_arr_forFig,box,round(val_dice,3))
 
                     # Log the figure we made
                     wandb.log({"Val_Comparison": wandb.Image(fig)})
