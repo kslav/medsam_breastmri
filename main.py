@@ -300,6 +300,7 @@ def make_image_for_logging(img, mask_arr,box,dice_score):
     # it in the buffer, retrieve it from the buffer, and then log it with WandB.
     # img: imag of size 1024x1024x3, randomly selected from current batch
     # mask_arr: array of size 2, containing ground truth [0] and prediction masks [1]
+    # dice_score: scalar value of dice score corresponding to img and predicted mask
 
     # make the figure with matplotlib
     fig, ax = plt.subplots(1, 2, figsize=(10, 5))
