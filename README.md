@@ -12,7 +12,6 @@ PRELIMINARY RESULTS:
 
 <img src="assets/Figure2.png" width="800">
 
-The image above was logged at the 800th step and shows very preliminary results as a proof-of-concept.
 
 *This is a work in progress and is continuously updated*
 
