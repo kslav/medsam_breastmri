@@ -125,7 +125,7 @@ save_every_n_steps = 100
 for step, (img_gt, mask_gt, _, img_name) in enumerate(tqdm(dataLoader)):
 
     #put the image on the same device as the model
-    img_gt, mask_gt = img_gt.to(device), mask_gt.to(device)
+    img_gt = img_gt.to(device)
 
     # create the ground truth boudning box
     box = make_gt_box(mask_gt, args.pad_size)
@@ -134,7 +134,7 @@ for step, (img_gt, mask_gt, _, img_name) in enumerate(tqdm(dataLoader)):
     mask_pred = medsam_inference(img_gt, box)
 
     # compute the dice score
-    mask_gt = mask_gt.squeeze().cpu().numpy()
+    mask_gt = mask_gt.squeeze().numpy()
     dice_step = np.sum(mask_pred[mask_gt==1])*2.0 / (np.sum(mask_pred) + np.sum(mask_gt))
     dice_scores[img_name]=dice_step
 
