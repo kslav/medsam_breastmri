@@ -28,23 +28,22 @@ def make_gt_box(mask, pad_size):
 
     #find min and max x and y of the lesion in the mask
     mask = np.squeeze(mask)
-    x_idx, y_idx = np.where(mask > 0)
+    y_idx, x_idx = np.where(mask > 0)
     x_min, y_min, x_max, y_max = np.min(x_idx), np.min(y_idx), np.max(x_idx), np.max(y_idx)
 
     # get the width and height of the box that tightly surrounds the ground truth lesion
     w, h = x_max-x_min, y_max - y_min
 
-    x_min_pad = np.uint8(x_min - w*pad_size)
-    x_max_pad = np.uint8(x_max + w*pad_size)
-    y_min_pad = np.uint8(y_min - h*pad_size)
-    y_max_pad = np.uint8(y_max + h*pad_size)
+    x_min_pad = np.uint8(x_min - 2)
+    x_max_pad = np.uint8(x_max + 2)
+    y_min_pad = np.uint8(y_min - 2)
+    y_max_pad = np.uint8(y_max + 2)
 
     # add the padding
-    box = np.array([x_min_pad, y_min_pad, x_max_pad, y_max_pad])
+    #box = np.array([x_min_pad, y_min_pad, x_max_pad, y_max_pad])
+    box = np.array([x_min, y_min, x_max, y_max])
     
     return box[None,...] #batch dimension out front
-
-
 
 
 def show_mask(mask, ax, random_color=False):
@@ -104,11 +103,11 @@ def medsam_inference(medsam_model, img, box):
 
 #### Set up the arguments ####
 parser = argparse.ArgumentParser(description="run inference on testing set based on MedSAM")
-parser.add_argument("--data_path", action='store',dest='data_path',type=str, default="/cbica/home/slavkovk/project_medsam_testing/Data_E4112/training", help="path to dir with images and masks")
-parser.add_argument("--seg_path", action='store', dest='seg_path',type=str, default="/cbica/home/slavkovk/project_medsam_testing/Data_E4112/baselines", help="path to dir in which to store predictions")
+parser.add_argument("--data_path", action='store',dest='data_path',type=str, default="/cbica/home/slavkovk/project_medsam_testing/Data_E4112/validation", help="path to dir with images and masks")
+parser.add_argument("--seg_path", action='store', dest='seg_path',type=str, default="/cbica/home/slavkovk/project_medsam_testing/Data_E4112/baselines_val", help="path to dir in which to store predictions")
 parser.add_argument("--device",action='store',dest='device', type=str, default="cuda:0")
 parser.add_argument("--checkpoint", action='store',dest='checkpoint',type=str, default="/cbica/home/slavkovk/project_medsam_testing/MedSAM/work_dir/MedSAM/medsam_vit_b.pth")
-parser.add_argument("--pad_size",action='store',dest='pad_size',type=float,default=0.2)
+parser.add_argument("--pad_size",action='store',dest='pad_size',type=float,default=0)
 args = parser.parse_args()
 
 #### Load the model and set the device ####
@@ -131,11 +130,12 @@ save_every_n_steps = 100
 
 for step, (img_gt, mask_gt, _, img_name) in enumerate(tqdm(dataLoader)):
 
+    img_name = img_name[0]
     #put the image on the same device as the model
     img_gt = img_gt.to(device)
     #print("img_gt.shape = ", img_gt.shape)
 
-    # create the ground truth boudning box
+    # create the ground truth bounding box
     box = make_gt_box(mask_gt, args.pad_size)
     
     # get the medsam prediction
@@ -153,11 +153,11 @@ for step, (img_gt, mask_gt, _, img_name) in enumerate(tqdm(dataLoader)):
 
         img_name_vec = img_name.split('_')
         save_file = join(args.seg_path,img_name_vec[0]+"_"+"baseline_"+str(args.pad_size)+".png")
-        make_image_for_logging(img_np, [mask_gt, mask_pred],box,dice_step, save_file)
+        make_image_for_logging(img_np, [mask_gt, mask_pred],np.squeeze(box),dice_step, save_file)
 
 # save the dictionary of dice scores
-df = pd.DataFrame.from_dict(dice_scores,orient="index")
-df.to_csv(join(args.seg_path,"dice_scores_baseline.csv"),index_col=0)
+df = pd.DataFrame.from_dict(dice_scores,orient='index')
+df.to_csv(join(args.seg_path,"dice_scores_baseline.csv"))
 
 
 
