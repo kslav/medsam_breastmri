@@ -115,7 +115,7 @@ medsam_model = medsam_model.to(device)
 medsam_model.eval()
 
 ### Create Dataloader ###
-dataSet = NpyDataset(args.data_path, transform=transform.ToTensor())
+dataSet = NpyDataset(args.data_path, transform=transforms.ToTensor())
 dataLoader = DataLoader(dataSet,batch_size=1,shuffle=False,num_workers=2,pin_memory=False)
 
 ### Loop through images and masks, creating a gt bounding box and running inference ####
