@@ -26,6 +26,7 @@ def make_gt_box(mask, pad_size):
     # pad_size is the percent (w.r.t the width of the ground truth mask) of padding to add (e.g. 0.2, 0.3, etc.)
 
     # find min and max x and y of the lesion in the mask
+    mask = np.squeeze(mask)
     x_idx, y_idx = np.where(mask > 0)
     x_min, y_min, x_max, y_max = np.min(x_idx), np.min(y_idx), np.max(x_idx), np.max(y_idx)
 
@@ -87,7 +88,7 @@ def make_image_for_logging(img, mask_arr,box,dice_score, save_file):
 
 
 @torch.no_grad()
-def medsam_inference(medsam_model, img, box, H, W):
+def medsam_inference(medsam_model, img, box):
     #PURPOSE: run inference and output a mask that is of the original image size, H and W
     # (recall that images are resized to 1024x1024 for input into medsam)
     # returns numpy array mask prediction
@@ -131,7 +132,7 @@ for step, (img_gt, mask_gt, _, img_name) in enumerate(tqdm(dataLoader)):
     box = make_gt_box(mask_gt, args.pad_size)
     
     # get the medsam prediction
-    mask_pred = medsam_inference(img_gt, box)
+    mask_pred = medsam_inference(medsam_model, img_gt, box)
 
     # compute the dice score
     mask_gt = mask_gt.squeeze().numpy()
