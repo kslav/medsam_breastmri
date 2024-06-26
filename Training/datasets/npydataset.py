@@ -62,4 +62,4 @@ class NpyDataset(Dataset):
             bboxes = torch.tensor(bboxes).float()
         
         #CHECK: print("Image and mask shapes are ", img_1024.shape, " and ", mask_1024.shape)
-        return img_1024, mask_1024, bboxes
+        return img_1024, mask_1024, bboxes, img_name

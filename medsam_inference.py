@@ -9,144 +9,148 @@ import torch
 from segment_anything import sam_model_registry
 from skimage import io, transform
 import torch.nn.functional as F
+from torch.utils.data import DataLoader
+from Training.datasets import NpyDataset
+import pandas as pd
 import argparse
+from tqdm import tqdm
 # update 
 
 # adapted from Ma et al. /MedSAM/MedSAM_Inference.py
 # PURPOSE: generate baseline segmentations
 # Approach: Loop through imgaes and mask and create bounding boxes based on ground truth segmentations
+
+def make_gt_box(mask, pad_size):
+    #PURPOSE: create a ground truth bounding box from a ground truth mask
+    # pad_size is the percent (w.r.t the width of the ground truth mask) of padding to add (e.g. 0.2, 0.3, etc.)
+
+    # find min and max x and y of the lesion in the mask
+    x_idx, y_idx = np.where(mask > 0)
+    x_min, y_min, x_max, y_max = np.min(x_idx), np.min(y_idx), np.max(x_idx), np.max(y_idx)
+
+    # get the width and height of the box that tightly surrounds the ground truth lesion
+    w, h = x_max-x_min, y_max - y_min
+
+    x_min_pad = np.uint8(x_min - w*pad_size)
+    x_max_pad = np.uint8(x_max + w*pad_size)
+    y_min_pad = np.uint8(y_min - h*pad_size)
+    y_max_pad = np.uint8(y_max + h*pad_size)
+
+    # add the padding
+    box = np.array([x_min_pad, y_min_pad, x_max_pad, y_max_pad])
+    return box
+
+
+
 def show_mask(mask, ax, random_color=False):
+    # Borrowed from MedSAM_Inference.py by the original authors of MedSAM, Ma et al.
+    # mask is 2D
     if random_color:
         color = np.concatenate([np.random.random(3), np.array([0.6])], axis=0)
     else:
-        color = np.array([251 / 255, 252 / 255, 30 / 255, 0.6])
+        color = np.array([255 / 255, 0 / 255, 0 / 255, 0.6])
     h, w = mask.shape[-2:]
     mask_image = mask.reshape(h, w, 1) * color.reshape(1, 1, -1)
     ax.imshow(mask_image)
 
 
 def show_box(box, ax):
+    # Borrowed from MedSAM_Inference.py by the original authors of MedSAM, Ma et al.
     x0, y0 = box[0], box[1]
     w, h = box[2] - box[0], box[3] - box[1]
-    ax.add_patch(
-        plt.Rectangle((x0, y0), w, h, edgecolor="blue", facecolor=(0, 0, 0, 0), lw=2)
-    )
+    ax.add_patch(plt.Rectangle((x0, y0), w, h, edgecolor="blue", facecolor=(0, 0, 0, 0), lw=2))
+
+def make_image_for_logging(img, mask_arr,box,dice_score, save_file):
+    # PURPOSE: To design a figure where we have the image with ground truth mask overlayed on the left
+    # and the prediction mask overlayed on the right, side by side. Once we've made this image, we store
+    # it in the buffer, retrieve it from the buffer, and then log it with WandB.
+    # img: imag of size 1024x1024x3, randomly selected from current batch
+    # mask_arr: array of size 2, containing ground truth [0] and prediction masks [1]
+    # dice_score: scalar value of dice score corresponding to img and predicted mask
+
+    # make the figure with matplotlib
+    fig, ax = plt.subplots(1, 2, figsize=(10, 5))
+    ax[0].imshow(img)
+    show_mask(mask_arr[0], ax[0])
+    ax[0].set_title("Input Image and Ground Truth")
+    ax[1].imshow(img)
+    show_mask(mask_arr[1], ax[1])
+    show_box(box, ax[1])
+    ax[1].set_title("MedSAM Segmentation - DICE={dice}".format(dice=round(dice_score,3)))
+    plt.tight_layout()
+
+    fig.savefig(save_file)  # save the plot to the buffer in PNG format
+    plt.close(fig)  # close the figure to free memory
+    
 
 
 @torch.no_grad()
-def medsam_inference(medsam_model, img_embed, box_1024, H, W):
-    box_torch = torch.as_tensor(box_1024, dtype=torch.float, device=img_embed.device)
-    if len(box_torch.shape) == 2:
-        box_torch = box_torch[:, None, :]  # (B, 1, 4)
+def medsam_inference(medsam_model, img, box, H, W):
+    #PURPOSE: run inference and output a mask that is of the original image size, H and W
+    # (recall that images are resized to 1024x1024 for input into medsam)
+    # returns numpy array mask prediction
 
-    sparse_embeddings, dense_embeddings = medsam_model.prompt_encoder(
-        points=None,
-        boxes=box_torch,
-        masks=None,
-    )
-    low_res_logits, _ = medsam_model.mask_decoder(
-        image_embeddings=img_embed,  # (B, 256, 64, 64)
-        image_pe=medsam_model.prompt_encoder.get_dense_pe(),  # (1, 256, 64, 64)
-        sparse_prompt_embeddings=sparse_embeddings,  # (B, 2, 256)
-        dense_prompt_embeddings=dense_embeddings,  # (B, 256, 64, 64)
-        multimask_output=False,
-    )
+    medsam_pred = medsam_model(img, box) #prediction
+    pred_sig_np = medsam_pred.squeeze().cpu().numpy()
+    pred_np = (pred_sig_np > 0.5).astype(np.uint8)
 
-    low_res_pred = torch.sigmoid(low_res_logits)  # (1, 1, 256, 256)
-
-    low_res_pred = F.interpolate(
-        low_res_pred,
-        size=(H, W),
-        mode="bilinear",
-        align_corners=False,
-    )  # (1, 1, gt.shape)
-    low_res_pred = low_res_pred.squeeze().cpu().numpy()  # (256, 256)
-    medsam_seg = (low_res_pred > 0.5).astype(np.uint8)
-    return medsam_seg
+    return pred_np
 
 
-# %% load model and image
-parser = argparse.ArgumentParser(
-    description="run inference on testing set based on MedSAM"
-)
-parser.add_argument(
-    "-i",
-    "--data_path",
-    type=str,
-    default="assets/ispy2_demo.png",
-    help="path to the data folder",
-)
-parser.add_argument(
-    "-o",
-    "--seg_path",
-    type=str,
-    default="assets/",
-    help="path to the segmentation folder",
-)
-parser.add_argument(
-    "--box",
-    type=list,
-    default=[40,50,100,150],#[95, 255, 190, 350],[0,0,255,255],  #
-    help="bounding box of the segmentation target",
-)
-parser.add_argument("--device", type=str, default="cpu", help="device")
-parser.add_argument(
-    "-chk",
-    "--checkpoint",
-    type=str,
-    default="work_dir/MedSAM/medsam_vit_b.pth",
-    help="path to the trained model",
-)
+#### Set up the arguments ####
+parser = argparse.ArgumentParser(description="run inference on testing set based on MedSAM")
+parser.add_argument("--data_path", action='store',dest='data_path',type=str, default="/cbica/home/slavkovk/project_medsam_testing/Data_E4112/training", help="path to dir with images and masks")
+parser.add_argument("--seg_path", action='store', dest='seg_path',type=str, default="/cbica/home/slavkovk/project_medsam_testing/Data_E4112/baselines", help="path to dir in which to store predictions")
+parser.add_argument("--box", type=list, default=[40,50,100,150],help="bounding box of the segmentation target")
+parser.add_argument("--device",action='store',dest='device', type=str, default="cuda:0")
+parser.add_argument("--checkpoint", action='store',dest='checkpoint',type=str, default="/cbica/home/slavkovk/project_medsam_testing/MedSAM/work_dir/MedSAM/medsam_vit_b.pth")
+parser.add_argument("--pad_size",action='store',dest='pad_size',type=float,default=0.2)
 args = parser.parse_args()
 
+#### Load the model and set the device ####
 device = args.device
 medsam_model = sam_model_registry["vit_b"](checkpoint=args.checkpoint)
 medsam_model = medsam_model.to(device)
 medsam_model.eval()
 
-###DEBUG###
-img_np = io.imread(args.data_path)
-img_np = img_np[:,:,0]
-###########
-print(img_np.shape)
-if len(img_np.shape) == 2:
-    img_3c = np.repeat(img_np[:, :, None], 3, axis=-1)
-else:
-    img_3c = img_np
-H, W, _ = img_3c.shape
-# %% image preprocessing
-img_1024 = transform.resize(
-    img_3c, (1024, 1024), order=3, preserve_range=True, anti_aliasing=True
-).astype(np.uint8)
-img_1024 = (img_1024 - img_1024.min()) / np.clip(
-    img_1024.max() - img_1024.min(), a_min=1e-8, a_max=None
-)  # normalize to [0, 1], (H, W, 3)
-# convert the shape to (3, H, W)
-img_1024_tensor = (
-    torch.tensor(img_1024).float().permute(2, 0, 1).unsqueeze(0).to(device)
-)
+### Create Dataloader ###
+dataSet = NpyDataset(args.data_path, transform=transforms.ToTensor())
+dataLoader = DataLoader(dataSet,batch_size=1,shuffle=False,num_workers=2,pin_memory=False)
 
-box_np = np.array([args.box])
-# transfer box_np t0 1024x1024 scale
-box_1024 = box_np / np.array([W, H, W, H]) * 1024
-with torch.no_grad():
-    image_embedding = medsam_model.image_encoder(img_1024_tensor)  # (1, 256, 64, 64)
+### Loop through images and masks, creating a gt bounding box and running inference ####
 
-medsam_seg = medsam_inference(medsam_model, image_embedding, box_1024, H, W)
-torch.save(medsam_seg, join(args.seg_path, "seg_wholeBB.pt"))
-plt.imsave(
-    join(args.seg_path, "seg_wholeBB_" + os.path.basename(args.data_path)),
-    medsam_seg)
-#    check_contrast=False,
-#)
+dice_scores = {}
+save_every_n_steps = 100
+for step, (img_gt, mask_gt, _, img_name) in enumerate(tqdm(dataLoader)):
 
-# %% visualize results
-fig, ax = plt.subplots(1, 2, figsize=(10, 5))
-ax[0].imshow(img_3c)
-show_box(box_np[0], ax[0])
-ax[0].set_title("Input Image and Bounding Box")
-ax[1].imshow(img_3c)
-show_mask(medsam_seg, ax[1])
-show_box(box_np[0], ax[1])
-ax[1].set_title("MedSAM Segmentation")
-plt.show()
+    #put the image on the same device as the model
+    img_gt, mask_gt = img_gt.to(device), mask_gt.to(device)
+
+    # create the ground truth boudning box
+    box = make_gt_box(mask_gt, args.pad_size)
+    
+    # get the medsam prediction
+    mask_pred = medsam_inference(img_gt, box)
+
+    # compute the dice score
+    mask_gt = np.squeeze(mask_gt)
+    dice_step = np.sum(mask_pred[mask_gt==1])*2.0 / (np.sum(mask_pred) + np.sum(mask_gt))
+    dice_scores[img_name]=dice_step
+
+    # save a figure every save_every_n_steps for visualization:
+    if step % save_every_n_steps == 0:
+        img_temp = img_gt[0,...]
+        img_np = img_temp.permute(1,2,0).detach().cpu().numpy()
+        pred_np = np.squeeze(mask_pred.detach().cpu().numpy())
+        gt_np = np.squeeze(mask_gt.detach().cpu().numpy())
+
+        img_name_vec = img_name.split('_')
+        save_file = join(args.seg_path,img_name_vec[0]+"_"+"baseline_"+str(args.pad_size))
+        make_image_for_logging(img_np, [gt_np, pred_np],box,dice_step, save_file)
+
+# save the dictionary of dice scores
+df = pd.DataFrame.from_dict(dice_scores,orient="index")
+df.to_csv(join(args.seg_path,"dice_scores_baseline.csv"),index_col=0)
+
+
+

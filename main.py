@@ -120,7 +120,7 @@ def main_train(args):
 
         ### TRAINING STEP ### 
         medsam_model.train()
-        for step, (img_gt, mask_gt, boxes) in enumerate(tqdm(train_dataloader)):
+        for step, (img_gt, mask_gt, boxes, _) in enumerate(tqdm(train_dataloader)):
 
             optimizer.zero_grad()
             # check which device the img, mask, and boxes are on
@@ -128,8 +128,8 @@ def main_train(args):
             #print("Okay printing shapes here...", img_gt.shape, mask_gt.shape)
             # create bounding box here that is the size of img_gt
             boxes_np = boxes.detach().cpu().numpy()
-            
             img_gt, mask_gt = img_gt.to(device), mask_gt.to(device)
+            
             if args.use_amp:
                 ## AMP
                 with torch.autocast(device_type="cuda", dtype=torch.float16):
@@ -202,7 +202,7 @@ def main_train(args):
         ### VALIDATION STEP ###
         medsam_model.eval()
         with torch.no_grad():
-            for step, (img_gt_val, mask_gt_val, boxes_val) in enumerate(tqdm(val_dataloader)):
+            for step, (img_gt_val, mask_gt_val, boxes_val, _) in enumerate(tqdm(val_dataloader)):
                 boxes_np = boxes_val.detach().cpu().numpy()
                 img_gt_val, mask_gt_val = img_gt_val.to(device), mask_gt_val.to(device)
                 medsam_pred = medsam_model(img_gt_val, boxes_np) #prediction
@@ -334,7 +334,7 @@ if __name__ == "__main__":
     parser.json_config('--config', default=None)
     parser.add_argument("--task_name", action='store',dest='task_name',type=str, default="MedSAM-ViT-B")
     parser.add_argument("--model_type", action='store',dest='model_type',type=str, default="vit_b")
-    parser.add_argument("--checkpoint", action='store',dest='checkpoint',type=str, default="work_dir/SAM/sam_vit_b_01ec64.pth")
+    parser.add_argument("--checkpoint", action='store',dest='checkpoint',type=str, default="./MedSAM/work_dir/MedSAM/medsam_vit_b.pth")
     parser.add_argument('--random_seed', action='store', dest='random_seed', type=int, help='random number seed for numpy', default=723)
     parser.add_argument("--work_dir", action='store',dest='work_dir',type=str, default="./work_dir")
     
