@@ -12,6 +12,7 @@ from torchvision import transforms
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from Training.datasets import NpyDataset
+from Training.model import MedSAM
 import pandas as pd
 import argparse
 from tqdm import tqdm
@@ -25,7 +26,7 @@ def make_gt_box(mask, pad_size):
     #PURPOSE: create a ground truth bounding box from a ground truth mask
     # pad_size is the percent (w.r.t the width of the ground truth mask) of padding to add (e.g. 0.2, 0.3, etc.)
 
-    # find min and max x and y of the lesion in the mask
+    #find min and max x and y of the lesion in the mask
     mask = np.squeeze(mask)
     x_idx, y_idx = np.where(mask > 0)
     x_min, y_min, x_max, y_max = np.min(x_idx), np.min(y_idx), np.max(x_idx), np.max(y_idx)
@@ -41,7 +42,8 @@ def make_gt_box(mask, pad_size):
     # add the padding
     box = np.array([x_min_pad, y_min_pad, x_max_pad, y_max_pad])
     
-    return box
+    return box[None,...] #batch dimension out front
+
 
 
 
@@ -111,8 +113,11 @@ args = parser.parse_args()
 
 #### Load the model and set the device ####
 device = args.device
-medsam_model = sam_model_registry["vit_b"](checkpoint=args.checkpoint)
-medsam_model = medsam_model.to(device)
+
+### Set up the model for training, namely load pretrained model ###
+print("Device is ...", device)
+sam_model = sam_model_registry["vit_b"](checkpoint=args.checkpoint) #See MedSAM_Inference.py for pretrained model attributes
+medsam_model = MedSAM(image_encoder=sam_model.image_encoder,mask_decoder=sam_model.mask_decoder,prompt_encoder=sam_model.prompt_encoder).to(device)
 medsam_model.eval()
 
 ### Create Dataloader ###
@@ -123,10 +128,12 @@ dataLoader = DataLoader(dataSet,batch_size=1,shuffle=False,num_workers=2,pin_mem
 
 dice_scores = {}
 save_every_n_steps = 100
+
 for step, (img_gt, mask_gt, _, img_name) in enumerate(tqdm(dataLoader)):
 
     #put the image on the same device as the model
     img_gt = img_gt.to(device)
+    #print("img_gt.shape = ", img_gt.shape)
 
     # create the ground truth boudning box
     box = make_gt_box(mask_gt, args.pad_size)
