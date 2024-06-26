@@ -14,7 +14,6 @@ import wandb
 join = os.path.join
 from test_tube import HyperOptArgumentParser
 from tqdm import tqdm
-from skimage import transform
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
@@ -129,7 +128,7 @@ def main_train(args):
             # create bounding box here that is the size of img_gt
             boxes_np = boxes.detach().cpu().numpy()
             img_gt, mask_gt = img_gt.to(device), mask_gt.to(device)
-            
+
             if args.use_amp:
                 ## AMP
                 with torch.autocast(device_type="cuda", dtype=torch.float16):

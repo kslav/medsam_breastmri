@@ -7,7 +7,8 @@ import os
 join = os.path.join
 import torch
 from segment_anything import sam_model_registry
-from skimage import io, transform
+from skimage import io
+from torchvision import transforms
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from Training.datasets import NpyDataset
