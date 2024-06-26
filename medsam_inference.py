@@ -38,6 +38,7 @@ def make_gt_box(mask, pad_size):
 
     # add the padding
     box = np.array([x_min_pad, y_min_pad, x_max_pad, y_max_pad])
+    
     return box
 
 
@@ -101,7 +102,6 @@ def medsam_inference(medsam_model, img, box, H, W):
 parser = argparse.ArgumentParser(description="run inference on testing set based on MedSAM")
 parser.add_argument("--data_path", action='store',dest='data_path',type=str, default="/cbica/home/slavkovk/project_medsam_testing/Data_E4112/training", help="path to dir with images and masks")
 parser.add_argument("--seg_path", action='store', dest='seg_path',type=str, default="/cbica/home/slavkovk/project_medsam_testing/Data_E4112/baselines", help="path to dir in which to store predictions")
-parser.add_argument("--box", type=list, default=[40,50,100,150],help="bounding box of the segmentation target")
 parser.add_argument("--device",action='store',dest='device', type=str, default="cuda:0")
 parser.add_argument("--checkpoint", action='store',dest='checkpoint',type=str, default="/cbica/home/slavkovk/project_medsam_testing/MedSAM/work_dir/MedSAM/medsam_vit_b.pth")
 parser.add_argument("--pad_size",action='store',dest='pad_size',type=float,default=0.2)
@@ -133,7 +133,7 @@ for step, (img_gt, mask_gt, _, img_name) in enumerate(tqdm(dataLoader)):
     mask_pred = medsam_inference(img_gt, box)
 
     # compute the dice score
-    mask_gt = np.squeeze(mask_gt)
+    mask_gt = mask_gt.squeeze().cpu().numpy()
     dice_step = np.sum(mask_pred[mask_gt==1])*2.0 / (np.sum(mask_pred) + np.sum(mask_gt))
     dice_scores[img_name]=dice_step
 
@@ -141,12 +141,10 @@ for step, (img_gt, mask_gt, _, img_name) in enumerate(tqdm(dataLoader)):
     if step % save_every_n_steps == 0:
         img_temp = img_gt[0,...]
         img_np = img_temp.permute(1,2,0).detach().cpu().numpy()
-        pred_np = np.squeeze(mask_pred.detach().cpu().numpy())
-        gt_np = np.squeeze(mask_gt.detach().cpu().numpy())
 
         img_name_vec = img_name.split('_')
-        save_file = join(args.seg_path,img_name_vec[0]+"_"+"baseline_"+str(args.pad_size))
-        make_image_for_logging(img_np, [gt_np, pred_np],box,dice_step, save_file)
+        save_file = join(args.seg_path,img_name_vec[0]+"_"+"baseline_"+str(args.pad_size)+".png")
+        make_image_for_logging(img_np, [mask_gt, mask_pred],box,dice_step, save_file)
 
 # save the dictionary of dice scores
 df = pd.DataFrame.from_dict(dice_scores,orient="index")
