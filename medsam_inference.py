@@ -76,11 +76,11 @@ def make_image_for_logging(img, mask_arr,box,dice_score, save_file):
     fig, ax = plt.subplots(1, 2, figsize=(10, 5))
     ax[0].imshow(img)
     show_mask(mask_arr[0], ax[0])
-    ax[0].set_title("Input Image and Ground Truth")
+    ax[0].set_title("Ground Truth Segmentation")
     ax[1].imshow(img)
     show_mask(mask_arr[1], ax[1])
     show_box(box, ax[1])
-    ax[1].set_title("MedSAM Segmentation - DICE={dice}".format(dice=round(dice_score,3)))
+    ax[1].set_title("MedSAM Zero-shot Segmentation - DICE={dice}".format(dice=round(dice_score,3)))
     plt.tight_layout()
 
     fig.savefig(save_file)  # save the plot to the buffer in PNG format
@@ -103,8 +103,8 @@ def medsam_inference(medsam_model, img, box):
 
 #### Set up the arguments ####
 parser = argparse.ArgumentParser(description="run inference on testing set based on MedSAM")
-parser.add_argument("--data_path", action='store',dest='data_path',type=str, default="/cbica/home/slavkovk/project_medsam_testing/Data_E4112/validation", help="path to dir with images and masks")
-parser.add_argument("--seg_path", action='store', dest='seg_path',type=str, default="/cbica/home/slavkovk/project_medsam_testing/Data_E4112/baselines_val", help="path to dir in which to store predictions")
+parser.add_argument("--data_path", action='store',dest='data_path',type=str, default="/cbica/home/slavkovk/project_medsam_testing/Data_E4112/training", help="path to dir with images and masks")
+parser.add_argument("--seg_path", action='store', dest='seg_path',type=str, default="/cbica/home/slavkovk/project_medsam_testing/Data_E4112/baselines_train", help="path to dir in which to store predictions")
 parser.add_argument("--device",action='store',dest='device', type=str, default="cuda:0")
 parser.add_argument("--checkpoint", action='store',dest='checkpoint',type=str, default="/cbica/home/slavkovk/project_medsam_testing/MedSAM/work_dir/MedSAM/medsam_vit_b.pth")
 parser.add_argument("--pad_size",action='store',dest='pad_size',type=float,default=0)
