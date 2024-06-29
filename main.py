@@ -363,9 +363,7 @@ if __name__ == "__main__":
     torch.cuda.empty_cache()
 
     if args.use_wandb:
-        import wandb
-
-        #wandb.login()
+        #wandb.login() #don't need to do this every time
         wandb.init(
             project=args.task_name,
             config={

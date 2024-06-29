@@ -13,13 +13,13 @@ from skimage import transform
 import pandas as pd
 
 ### Load path to csv file of imaging paths
-img_dirs_csv = "/cbica/home/slavkovk/project_medsam_testing/Data_E4112/e4112_data_train_n298.csv"
+img_dirs_csv = "/cbica/home/slavkovk/project_medsam_testing/Data_E4112/e4112_data_validation_n60.csv"
 img_dirs_df = pd.read_csv(img_dirs_csv)
 
 ### Settings
 save_cropped_niis = False #whether or not to save the niis of the cropped img and mask for inspection
 image_size = 1024 # target size to which to resize the images and masks
-save_path = "/cbica/home/slavkovk/project_medsam_testing/Data_E4112/"
+save_path = "/cbica/home/slavkovk/project_medsam_testing/Data_E4112/split_patientwise/validation"
 
 # %% save preprocessed images and masks as npz files
 for  idx in range(5,len(img_dirs_df)):  # use the remaining 10 cases for validation
