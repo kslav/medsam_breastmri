@@ -9,6 +9,8 @@
 #SBATCH --error=Scripts/cluster_output/mgpus_%x-%j.err
 #SBATCH --time=00:10:00
 
+# modified from /MedSAM/train_multi_gpus.sh for one node, multiple GPUs
+# doesn't successfully launch in this current state
 
 set -x -e
 # load the modules and environment

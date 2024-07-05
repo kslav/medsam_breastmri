@@ -22,7 +22,7 @@ image_size = 1024 # target size to which to resize the images and masks
 save_path = "/cbica/home/slavkovk/project_medsam_testing/Data_E4112/split_patientwise/validation"
 
 # %% save preprocessed images and masks as npz files
-for  idx in range(5,len(img_dirs_df)):  # use the remaining 10 cases for validation
+for  idx in range(0,5):#len(img_dirs_df)):  
     ### Load a row of the CSV file ###
     case_i = img_dirs_df.loc[idx,'Case']
     img_path_gt = img_dirs_df.loc[idx,'Image']   #ground truth dicom path (probably will use nifti)
@@ -72,37 +72,42 @@ for  idx in range(5,len(img_dirs_df)):  # use the remaining 10 cases for validat
        
         ### Prepare the final training data by resizing the image and mask and saving each slice as .npy file
         for sli,_ in enumerate(z_index):
-            img_2D = np.squeeze(img_i_crop[sli, :, :])
-            mask_2D = np.squeeze(mask_i_crop[sli,:,:])
-            img_3c = np.repeat(img_2D[:, :, None], 3, axis=-1)
-            mask_3c = mask_2D[...,None]
-
-            resize_img_skimg = transform.resize(
-                img_3c,
-                (image_size, image_size),
-                order=3,
-                preserve_range=True,
-                mode="constant",
-                anti_aliasing=True,)
             
-            # normalize the resized image
-            resize_img_skimg_01 = (resize_img_skimg - resize_img_skimg.min()) / np.clip(
-                resize_img_skimg.max() - resize_img_skimg.min(), a_min=1e-8, a_max=None)  # normalize to [0, 1], (H, W, 3)
-            
-            # resize the mask as well
-            resize_gt_skimg = transform.resize(
-                mask_3c,
-                (image_size, image_size),
-                order=0,
-                preserve_range=True,
-                mode="constant",
-                anti_aliasing=False)
-            resize_gt_skimg = np.uint8(resize_gt_skimg)
-            assert resize_img_skimg_01.shape[:2] == resize_gt_skimg.shape[:2]
+            # check if the desired paths even exist:
+            img_path_final = join(save_path,"images",str(case_i)+"_img_sli_"+str(sli).zfill(3)+".npy")
+            mask_path_final = join(save_path,"labels",str(case_i)+"_mask_sli_"+str(sli).zfill(3)+".npy")
+            if (os.path.isfile(img_path_final) and os.path.isfile(mask_path_final))==False:
+                img_2D = np.squeeze(img_i_crop[sli, :, :])
+                mask_2D = np.squeeze(mask_i_crop[sli,:,:])
+                img_3c = np.repeat(img_2D[:, :, None], 3, axis=-1)
+                mask_3c = mask_2D[...,None]
 
-            #save the .npy files in save_path
-            np.save(join(save_path,"images",str(case_i)+"_img_sli_"+str(sli).zfill(3)+".npy"),resize_img_skimg_01)
-            np.save(join(save_path,"labels",str(case_i)+"_mask_sli_"+str(sli).zfill(3)+".npy"),resize_gt_skimg)
+                resize_img_skimg = transform.resize(
+                    img_3c,
+                    (image_size, image_size),
+                    order=3,
+                    preserve_range=True,
+                    mode="constant",
+                    anti_aliasing=True,)
+                
+                # normalize the resized image
+                resize_img_skimg_01 = (resize_img_skimg - resize_img_skimg.min()) / np.clip(
+                    resize_img_skimg.max() - resize_img_skimg.min(), a_min=1e-8, a_max=None)  # normalize to [0, 1], (H, W, 3)
+                
+                # resize the mask as well
+                resize_gt_skimg = transform.resize(
+                    mask_3c,
+                    (image_size, image_size),
+                    order=0,
+                    preserve_range=True,
+                    mode="constant",
+                    anti_aliasing=False)
+                resize_gt_skimg = np.uint8(resize_gt_skimg)
+                assert resize_img_skimg_01.shape[:2] == resize_gt_skimg.shape[:2]
+
+                
+                np.save(img_path_final,resize_img_skimg_01)
+                np.save(mask_path_final,resize_gt_skimg)
 
 
 
