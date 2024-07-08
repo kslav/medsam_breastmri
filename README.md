@@ -14,6 +14,10 @@ PRELIMINARY RESULTS:
 
 
 *This is a work in progress and is continuously updated*
+TODO
+- Implement ddp to investigate larger batch sizes 
+- Explore additional methods for data preprocessing of MRIs outside of those discussed by Ma et al. 
+- External validation 
 
 References:
 1. Ma et al. (2024). *Communications*. https://doi.org/10.1038/s41467-024-44824-z
