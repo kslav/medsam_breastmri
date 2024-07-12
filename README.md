@@ -4,13 +4,19 @@ PURPOSE: To fine-tune the MedSAM foundation model by Ma et al. (2024) *Communica
 
 MOTIVATION: Segmentation remains an important task in medical image analysis for identifying structures of interest, such as cancers, for downstream analysis tasks. Breast cancers are notoriously difficult to segment due to varying enhancement patterns of lesions on dynamic contrast-enhanced MRI and occlusion by dense tissues. Here we aim to evaluate the ability of the MedSAM foundation model to segment breast cancers on MRI when fine-tuned on a breast MRI dataset. 
 
+On invasive breast cancer lesions, MedSAM appears to perform well when given an appropriate prompt.
+
 <img src="assets/Figure1.png" width="800">
+
+For DCIS, however, with tight bounding boxes around the lesions, the mean dice similarity coefficient is 0.43 (+/-0.17) across the dataset of N=298.
+
+<img src="assets/Figure2.png" width="800">
 
 Currently, MedSAM (and SAM) requires a bounding box that identifies the region in which the object of interest lies. This prompt generation, however, still necessitate the involvement of a radiologist to identify breast lesions and delinate bounding boxes for each slice in an imaging volume. To circumvent this step, we are investigating whether MedSAM can be fine-tuned on breast MRI data with a fixed bounding box that includes the entire breast tissue. 
 
 PRELIMINARY RESULTS:
 
-<img src="assets/Figure2.png" width="800">
+<img src="assets/Figure3.png" width="800">
 
 
 *This is a work in progress and is continuously updated*
