@@ -13,6 +13,8 @@
 #$ -l h_vmem=30G
 #$ -l h_rt=00:50:00
 
-source activate medsam
+module load anaconda 
+conda init
+conda activate medsam
 python /ifs/home/dk3360_gp/kps2152/project_medSAM_testing/Training/utils/split_Data.py
-deactivate 
+conda deactivate 

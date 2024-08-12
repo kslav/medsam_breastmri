@@ -15,7 +15,7 @@ save_path = "/ifs/data/dk3360_gp/kps2152/project_DCIS_MRI/E4112_processed/" # wh
 if path_nii is not None:
     # get a list of the files for all the images and corresponding masks
     img_path = join(path_nii, 'Data', 'E4112')
-    mask_path = join(path_nii 'Masks')
+    mask_path = join(path_nii, 'Masks')
     mask_files = sorted(os.listdir(mask_path)) # these are the mask files themselves
     cases = sorted(os.listdir(img_path)) # these are the case numbers since the folders in img_path are named after the case numbers
 

@@ -2,52 +2,61 @@
 # %% import packages
 # pip install connected-components-3d
 import numpy as np
-
 import nibabel as nib
 import SimpleITK as sitk
 import os
-
 join = os.path.join
 from skimage import transform
 #import cc3d
 import pandas as pd
+from scipy.ndimage import rotate
 
 ### Load path to csv file of imaging paths
-img_dirs_csv = "/cbica/home/slavkovk/project_medsam_testing/Data_E4112/e4112_data_validation_n60.csv"
-img_dirs_df = pd.read_csv(img_dirs_csv)
+data_path = "/ifs/data/dk3360_gp/kps2152/project_DCIS_MRI/E4112_processed/training"
+save_path = data_path
+
+### Load the CSV file with orientation and acquisition info for each case so we know how to rotate the images
+img_info_csv = "/ifs/data/dk3360_gp/kps2152/project_DCIS_MRI/E4112_processed/DCIS_R01_first_BC_resolution_info.csv"
+img_info_df = pd.read_csv(img_info_csv)
+img_info_df = img_info_df['Case','Orientation']
 
 ### Settings
-save_cropped_niis = False #whether or not to save the niis of the cropped img and mask for inspection
+save_cropped_niis = False #whether or not to save the niis of the slice-wise cropped img and mask for inspection
 image_size = 1024 # target size to which to resize the images and masks
-save_path = "/cbica/home/slavkovk/project_medsam_testing/Data_E4112/split_patientwise/validation"
+
+### Get the list of image and label .nii.gz files in data_path
+img_files = sorted(os.listdir(join(data_path,'images')))
+mask_files = sorted(os.listdir(join(data_path,'labels')))
 
 # %% save preprocessed images and masks as npz files
-for  idx in range(0,5):#len(img_dirs_df)):  
-    ### Load a row of the CSV file ###
-    case_i = img_dirs_df.loc[idx,'Case']
-    img_path_gt = img_dirs_df.loc[idx,'Image']   #ground truth dicom path (probably will use nifti)
-    mask_path_gt = img_dirs_df.loc[idx,'Mask']   #ground truth dicom mask path (probably will use nifti)
-        
-    # ### Load the image and mask corresponding to the paths from the csv file
-    # ### Note: SITK loads images as [z, x, y], while nib loads them as [x,y,z]
-    # img_nii = nib.load(img_path_gt)    #ground truth image loaded with SITK -> numpy array
-    # mask_nii = nib.load(mask_path_gt)  #ground truth mask loaded with SITK -> numpy array
-    # #convert to numpy array
-    # img_i = np.array(img_nii.dataobj)
-    # mask_i = np.array(mask_nii.dataobj)
+for  i in range(0,5):#len(img_files)):  
+    # load the image and mask for case i
+    img_i = sitk.GetArrayFromImage(sitk.ReadImage(img_files[i]))    #ground truth image loaded with SITK -> numpy array
+    mask_i = sitk.GetArrayFromImage(sitk.ReadImage(mask_files[i]))  #ground truth mask loaded with SITK -> numpy array
+    
+    # get the orientation info from img_info_df
+    orien_i = img_info_df.iloc[i, 1] 
+    case_i = img_info_df.iloc[i, 0] 
 
-    img_i = sitk.GetArrayFromImage(sitk.ReadImage(img_path_gt))    #ground truth image loaded with SITK -> numpy array
-    mask_i = sitk.GetArrayFromImage(sitk.ReadImage(mask_path_gt))  #ground truth mask loaded with SITK -> numpy array
+    # Check that case_i is the same as the case number in img_files[i]
+    
+    # rotate the image about the slice axis so that the chest wall is along the bottom 
+    if orien_i == 'T':
+        img_i = rotate(img_i, angle=180, axes=(2, 1), reshape=False)
+        mask_i = rotate(img_i, angle=180, axes=(2, 1), reshape=False)
+    if orien_i == 'R':
+        img_i = rotate(img_i, angle=270, axes=(2, 1), reshape=False)
+        mask_i = rotate(img_i, angle=270, axes=(2, 1), reshape=False)
 
     # find non-zero slices
     z_index,_,_ = np.where(mask_i > 0)
     z_index = np.unique(z_index)
 
     #sanity check stuff:
-    #print("image size = ", img_i.shape)
-    #print("mask size = ", mask_i.shape)
-    #print("z_index = ", z_index)
-    #print("image max and min are ", np.max(img_i), " ", np.min(img_i))
+    print("image size = ", img_i.shape)
+    print("mask size = ", mask_i.shape)
+    print("z_index = ", z_index)
+    print("image max and min are ", np.max(img_i), " ", np.min(img_i))
 
 
     if len(z_index) > 0:
@@ -102,6 +111,7 @@ for  idx in range(0,5):#len(img_dirs_df)):
                     preserve_range=True,
                     mode="constant",
                     anti_aliasing=False)
+                
                 resize_gt_skimg = np.uint8(resize_gt_skimg)
                 assert resize_img_skimg_01.shape[:2] == resize_gt_skimg.shape[:2]
 
