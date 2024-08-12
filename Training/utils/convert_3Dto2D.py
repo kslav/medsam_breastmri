@@ -39,7 +39,20 @@ for  i in range(0,5):#len(img_files)):
     case_i = img_info_df.iloc[i, 0] 
 
     # Check that case_i is the same as the case number in img_files[i]
+    filename = img_files[i]
+    filename_vec = filename.split('/')
+    filename_nii = filename_vec[-1]
+    filename_nii_vec = filename_nii.split('_')
+    assert int(filename_nii_vec[1])==case_i, "Case number from CSV and case number from image file aren't the same..."
     
+    # Check that the case numbers in the img and mask file names are the same...
+    filename2 = mask_files[i]
+    filename2_vec = filename2.split('/')
+    filename2_nii = filename2_vec[-1]
+    filename2_nii_vec = filename2_nii.split('_')
+    assert int(filename2_nii_vec[1])==int(filename_nii_vec[1]), "Case number in image and mask file names should be the same..."
+    
+
     # rotate the image about the slice axis so that the chest wall is along the bottom 
     if orien_i == 'T':
         img_i = rotate(img_i, angle=180, axes=(2, 1), reshape=False)
@@ -76,8 +89,8 @@ for  i in range(0,5):#len(img_files)):
         if save_cropped_niis:
             img_roi_sitk = sitk.GetImageFromArray(img_i_crop)
             gt_roi_sitk = sitk.GetImageFromArray(mask_i_crop)
-            sitk.WriteImage(img_roi_sitk, "/cbica/home/slavkovk/img_"+str(idx)+".nii")
-            sitk.WriteImage(gt_roi_sitk,"/cbica/home/slavkovk/mask_"+str(idx)+".nii")
+            sitk.WriteImage(img_roi_sitk, join(save_path, "sanitycheck_case_img_"+str(idx)+".nii"))
+            sitk.WriteImage(gt_roi_sitk, join(save_path, "sanitycheck_case_mask_"+str(idx)+".nii"))
        
         ### Prepare the final training data by resizing the image and mask and saving each slice as .npy file
         for sli,_ in enumerate(z_index):
