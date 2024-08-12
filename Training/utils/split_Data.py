@@ -5,54 +5,80 @@ import shutil
 import random
 import pandas as pd
 
-path_nii = "/cbica/home/slavkovk/project_medsam_testing/Data_E4112/e4112_data_train_n298.csv" # for E4112, easier for it to be a csv of paths
+path_nii = "/ifs/data/dk3360_gp/projects/DCIS_MRI/" # for E4112, easier for it to be a csv of paths
 path_video = None # or specify the path
 path_2d = None #'/cbica/home/slavkovk/project_medsam_testing/Data_E4112' # or specify the path
 
+save_path = "/ifs/data/dk3360_gp/kps2152/project_DCIS_MRI/E4112_processed/" # where to save the split up data
+
 #%% split 3D nii data
 if path_nii is not None:
-    save_path = "/cbica/home/slavkovk/project_medsam_testing/Data_E4112/split_patientwise"
-    img_dirs_df = pd.read_csv(path_nii)
-    cases = img_dirs_df.loc[:,'Case']
-    
-    idx_list = range(0,len(cases))
+    # get a list of the files for all the images and corresponding masks
+    img_path = join(path_nii, 'Data', 'E4112')
+    mask_path = join(path_nii 'Masks')
+    mask_files = sorted(os.listdir(mask_path)) # these are the mask files themselves
+    cases = sorted(os.listdir(img_path)) # these are the case numbers since the folders in img_path are named after the case numbers
 
-    # creat the validation and testing directories
+
+    # creat the training, validation, and testing directories
     validation_path = join(save_path, 'validation')
     os.makedirs(join(validation_path, 'images'), exist_ok=True)
     os.makedirs(join(validation_path, 'labels'), exist_ok=True)
+    
     testing_path = join(save_path, 'testing')
     os.makedirs(join(testing_path, 'images'), exist_ok=True)
     os.makedirs(join(testing_path, 'labels'), exist_ok=True)
 
-    candidates = random.sample(idx_list, int(len(cases)*0.2))
-    # split half of test names for validation
-    validation_idx = candidates #random.sample(candidates, int(len(candidates)*0.5))
-    #test_idx = [name for name in candidates if name not in validation_names]
+    training_path = join(save_path, 'training')
+    os.makedirs(join(training_path, 'images'), exist_ok=True)
+    os.makedirs(join(training_path, 'labels'), exist_ok=True)
+
+    # randomly grab 20% of the cases for the val/test split and leave the other 80% for training
+    candidates = random.sample(cases, int(len(cases)*0.2))
+    training_names = [name for name in cases if name not in candidates]
+    validation_names = random.sample(candidates, int(len(candidates)*0.5))
+    test_names = [name for name in candidates if name not in validation_names]
+
     
-    # move validation and testing data to corresponding folders
-    for idx in validation_idx:
+    # move the training, validation, and test files to corresponding folders in save_path
+    for name in training_names:
         # pull the image and mask paths from the dataframe
-        img_path_i = img_dirs_df.loc[idx,'Image']
-        mask_path_i = img_dirs_df.loc[idx,'Mask']
+        img_file_i = join(img_path, name, "case_{0}_first_BC.nii.gz".format(name))
+        mask_file_i = join(mask_path, "case_{0}_mask.nii.gz".format(name))
 
         # get the image and mask file names 
-        img_name = img_path_i.split("/")[-1]
-        mask_name = mask_path_i.split("/")[-1]
+        img_name = img_file_i.split("/")[-1]
+        mask_name = mask_file_i.split("/")[-1]
 
         # copy the files to their new locations in validation_path
-        shutil.copy(img_path_i, join(validation_path, 'images', img_name))
-        shutil.copy(mask_path_i, join(validation_path, 'labels', mask_name))
+        shutil.copy(img_file_i, join(training_path, 'images', img_name))
+        shutil.copy(mask_file_i, join(training_path, 'labels', mask_name))
+
+    for name in validation_names:
+        # pull the image and mask paths from the dataframe
+        img_file_i = join(img_path, name, "case_{0}_first_BC.nii.gz".format(name))
+        mask_file_i = join(mask_path, "case_{0}_mask.nii.gz".format(name))
+
+        # get the image and mask file names 
+        img_name = img_file_i.split("/")[-1]
+        mask_name = mask_file_i.split("/")[-1]
+
+        # copy the files to their new locations in validation_path
+        shutil.copy(img_file_i, join(validation_path, 'images', img_name))
+        shutil.copy(mask_file_i, join(validation_path, 'labels', mask_name))
     
-    # for idx in test_idx:
-    #     img_path_i = img_path[idx]
-    #     mask_path_i = gt_path[idx]
+    for name in test_names:
+        # pull the image and mask paths from the dataframe
+        img_file_i = join(img_path, name, "case_{0}_first_BC.nii.gz".format(name))
+        mask_file_i = join(mask_path, "case_{0}_mask.nii.gz".format(name))
 
-    #     img_name = img_path_i.split("/")[-1]
-    #     mask_name = mask_path_i.split("/")[-1]
+        # get the image and mask file names 
+        img_name = img_file_i.split("/")[-1]
+        mask_name = mask_file_i.split("/")[-1]
 
-    #     os.copy(img_path_i, join(testing_path, 'images', img_name))
-    #     os.copy(mask_path_i, join(testing_path, 'labels', mask_name))
+        # copy the files to their new locations in validation_path
+        shutil.copy(img_file_i, join(testing_path, 'images', img_name))
+        shutil.copy(mask_file_i, join(testing_path, 'labels', mask_name))
 
 
 ##% split 2D images
