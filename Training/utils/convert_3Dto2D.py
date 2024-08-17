@@ -2,21 +2,21 @@
 # %% import packages
 # pip install connected-components-3d
 import numpy as np
-import nibabel as nib
+import pandas as pd
 import SimpleITK as sitk
 import os
 join = os.path.join
 from skimage import transform
 #import cc3d
-import pandas as pd
 from scipy.ndimage import rotate
+import nibabel as nib
 
 ### Load path to csv file of imaging paths
-data_path = "/ifs/data/dk3360_gp/kps2152/project_DCIS_MRI/E4112_processed/training"
+data_path = "/home/kps2152/project_medSAM_testing/Data/E4112/training"
 save_path = data_path
 
 ### Load the CSV file with orientation and acquisition info for each case so we know how to rotate the images
-img_info_csv = "/ifs/data/dk3360_gp/kps2152/project_DCIS_MRI/E4112_processed/DCIS_R01_first_BC_resolution_info.csv"
+img_info_csv = "/home/kps2152/project_medSAM_testing/Data/E4112/DCIS_R01_first_BC_resolution_info.csv"
 img_info_df = pd.read_csv(img_info_csv)
 img_info_df = img_info_df['Case','Orientation']
 

@@ -5,11 +5,11 @@ import shutil
 import random
 import pandas as pd
 
-path_nii = "/ifs/data/dk3360_gp/projects/DCIS_MRI/" # for E4112, easier for it to be a csv of paths
+path_nii = "/data/CBIG/projects/DCIS_MRI/" # for E4112, easier for it to be a csv of paths
 path_video = None # or specify the path
 path_2d = None #'/cbica/home/slavkovk/project_medsam_testing/Data_E4112' # or specify the path
 
-save_path = "/ifs/data/dk3360_gp/kps2152/project_DCIS_MRI/E4112_processed/" # where to save the split up data
+save_path = "/home/kps2152/project_medSAM_testing/Data/E4112" # where to save the split up data
 
 #%% split 3D nii data
 if path_nii is not None:

@@ -1,7 +1,7 @@
   #!/bin/bash
 #$ -cwd
 #$ -N data_split
-#$ -o /ifs/scratch/dk3360_gp/kps2152/job_outputs/$JOB_NAME_$JOB_ID.output
+#$ -o /home/kps2152/project_medSAM_testing/Scripts/job_outputs
 #$ -j y
 
 #### REMEMBER TO EDIT 1) "-N" and 2) python script file name 
@@ -16,5 +16,5 @@
 module load anaconda 
 conda init
 conda activate medsam
-python /ifs/home/dk3360_gp/kps2152/project_medSAM_testing/Training/utils/split_Data.py
+python /home/kps2152/project_medSAM_testing/Training/utils/split_Data.py
 conda deactivate 
