@@ -12,16 +12,16 @@ from scipy.ndimage import rotate
 import nibabel as nib
 
 ### Load path to csv file of imaging paths
-data_path = "/home/kps2152/project_medSAM_testing/Data/E4112/training"
+data_path = "/home/kps2152/project_medSAM_testing/Data/E4112/testing"
 save_path = data_path
 
 ### Load the CSV file with orientation and acquisition info for each case so we know how to rotate the images
-img_info_csv = "/home/kps2152/project_medSAM_testing/Data/E4112/DCIS_R01_first_BC_resolution_info.csv"
+img_info_csv = "/home/kps2152/project_medSAM_testing/Data/DCIS_R01_first_BC_resolution_info.csv"
 img_info_df = pd.read_csv(img_info_csv)
-img_info_df = img_info_df['Case','Orientation']
+new_info = []
 
 ### Settings
-save_cropped_niis = False #whether or not to save the niis of the slice-wise cropped img and mask for inspection
+save_cropped_niis = False#whether or not to save the niis of the slice-wise cropped img and mask for inspection
 image_size = 1024 # target size to which to resize the images and masks
 
 ### Get the list of image and label .nii.gz files in data_path
@@ -29,47 +29,60 @@ img_files = sorted(os.listdir(join(data_path,'images')))
 mask_files = sorted(os.listdir(join(data_path,'labels')))
 
 # %% save preprocessed images and masks as npz files
-for  i in range(0,5):#len(img_files)):  
+for  i in range(0,len(img_files)):  
     # load the image and mask for case i
-    img_i = sitk.GetArrayFromImage(sitk.ReadImage(img_files[i]))    #ground truth image loaded with SITK -> numpy array
-    mask_i = sitk.GetArrayFromImage(sitk.ReadImage(mask_files[i]))  #ground truth mask loaded with SITK -> numpy array
-    
-    # get the orientation info from img_info_df
-    orien_i = img_info_df.iloc[i, 1] 
-    case_i = img_info_df.iloc[i, 0] 
+    img_file_i = join(data_path,'images',img_files[i])
+    mask_file_i = join(data_path,'labels',mask_files[i])
+    print("Image file is ", img_file_i)
+    print("Mask file is ", mask_file_i)
+    img_i = sitk.GetArrayFromImage(sitk.ReadImage(img_file_i))    #ground truth image loaded with SITK -> numpy array
+    mask_i = sitk.GetArrayFromImage(sitk.ReadImage(mask_file_i))  #ground truth mask loaded with SITK -> numpy array
 
-    # Check that case_i is the same as the case number in img_files[i]
+    # get the case number from the image file name
     filename = img_files[i]
     filename_vec = filename.split('/')
     filename_nii = filename_vec[-1]
     filename_nii_vec = filename_nii.split('_')
-    assert int(filename_nii_vec[1])==case_i, "Case number from CSV and case number from image file aren't the same..."
+    case_i_fromFile = int(filename_nii_vec[1])
+    print("Case from file is ", case_i_fromFile)
+
+     # get the orientation info from img_info_df
+    img_info_i = img_info_df[img_info_df["Case"]==case_i_fromFile] 
+    orien_i = img_info_i["Orientation"].iloc[0]
+    case_i = img_info_i["Case"].iloc[0]
+    print("Case from CSV is ", case_i)
+
+    assert case_i_fromFile==case_i, "Case number from CSV doesn't match case number from file"
     
     # Check that the case numbers in the img and mask file names are the same...
     filename2 = mask_files[i]
     filename2_vec = filename2.split('/')
     filename2_nii = filename2_vec[-1]
     filename2_nii_vec = filename2_nii.split('_')
-    assert int(filename2_nii_vec[1])==int(filename_nii_vec[1]), "Case number in image and mask file names should be the same..."
+    assert int(filename2_nii_vec[1])==case_i_fromFile, "Case number in image and mask file names should be the same..."
     
 
     # rotate the image about the slice axis so that the chest wall is along the bottom 
     if orien_i == 'T':
+        print("Rotating from top to bottom...")
         img_i = rotate(img_i, angle=180, axes=(2, 1), reshape=False)
-        mask_i = rotate(img_i, angle=180, axes=(2, 1), reshape=False)
+        mask_i = rotate(mask_i, angle=180, axes=(2, 1), reshape=False)
     if orien_i == 'R':
+        print("Rotating from right to bottom...")
         img_i = rotate(img_i, angle=270, axes=(2, 1), reshape=False)
-        mask_i = rotate(img_i, angle=270, axes=(2, 1), reshape=False)
+        mask_i = rotate(mask_i, angle=270, axes=(2, 1), reshape=False)
 
     # find non-zero slices
     z_index,_,_ = np.where(mask_i > 0)
     z_index = np.unique(z_index)
 
     #sanity check stuff:
-    print("image size = ", img_i.shape)
-    print("mask size = ", mask_i.shape)
-    print("z_index = ", z_index)
-    print("image max and min are ", np.max(img_i), " ", np.min(img_i))
+    # print("image size = ", img_i.shape)
+    # print("mask size = ", mask_i.shape)
+    # print("z_index = ", z_index)
+    # print("image max and min are ", np.max(img_i), " ", np.min(img_i))
+
+    new_info.append({"Case": case_i, "Img_File": img_file_i, "Mask_File": mask_file_i, "Num_Slices": len(z_index)})
 
 
     if len(z_index) > 0:
@@ -89,8 +102,8 @@ for  i in range(0,5):#len(img_files)):
         if save_cropped_niis:
             img_roi_sitk = sitk.GetImageFromArray(img_i_crop)
             gt_roi_sitk = sitk.GetImageFromArray(mask_i_crop)
-            sitk.WriteImage(img_roi_sitk, join(save_path, "sanitycheck_case_img_"+str(idx)+".nii"))
-            sitk.WriteImage(gt_roi_sitk, join(save_path, "sanitycheck_case_mask_"+str(idx)+".nii"))
+            sitk.WriteImage(img_roi_sitk, join(save_path, "sanitycheck_case_img_"+str(case_i)+".nii"))
+            sitk.WriteImage(gt_roi_sitk, join(save_path, "sanitycheck_case_mask_"+str(case_i)+".nii"))
        
         ### Prepare the final training data by resizing the image and mask and saving each slice as .npy file
         for sli,_ in enumerate(z_index):
@@ -133,4 +146,6 @@ for  i in range(0,5):#len(img_files)):
                 np.save(mask_path_final,resize_gt_skimg)
 
 
-
+# Safe new_info 
+new_info_df = pd.DataFrame(new_info)
+new_info_df.to_csv(join(save_path, "data_split_info.csv"))

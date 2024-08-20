@@ -59,6 +59,14 @@ def main_train(args):
         mask_decoder=sam_model.mask_decoder,
         prompt_encoder=sam_model.prompt_encoder).to(device)
 
+    #print out the names of all the layers
+    #for name, param in medsam_model.state_dict().items():
+    #    print(f"Parameter name: {name} - Parameter: {param.size()}")
+
+    # Let's freeze the image encoder and just train over the mask encoder since we don't have many individual patients...
+    for param in medsam_model.image_encoder.parameters():
+            param.requires_grad = False
+
     ### Set optimizer ###
     img_mask_encdec_params = list(medsam_model.image_encoder.parameters()) + list(medsam_model.mask_decoder.parameters())
     optimizer = torch.optim.AdamW(img_mask_encdec_params, lr=args.lr, weight_decay=args.weight_decay)
