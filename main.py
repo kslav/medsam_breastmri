@@ -60,8 +60,9 @@ def main_train(args):
         prompt_encoder=sam_model.prompt_encoder).to(device)
 
     #print out the names of all the layers
-    #for name, param in medsam_model.state_dict().items():
-    #    print(f"Parameter name: {name} - Parameter: {param.size()}")
+    for name, param in medsam_model.state_dict().items():
+       print(f"Parameter name: {name} - Parameter: {param.size()}")
+    raise
 
     # Let's freeze the image encoder and just train over the mask encoder since we don't have many individual patients...
     for param in medsam_model.image_encoder.parameters():
