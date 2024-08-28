@@ -1,0 +1,19 @@
+{
+	"random_seed": 723,
+	"train_data_paths": "/home/kps2152/project_medSAM_testing/Data/E4112/training",
+	"val_data_paths": "/home/kps2152/project_medSAM_testing/Data/E4112/validation",
+	"task_name": "e4112_train_val",
+	"run_name": "mediumBatch_decoderLastLayers", 
+	"model_type": "vit_b",
+	"checkpoint": "/home/kps2152/project_medSAM_testing/MedSAM/work_dir/MedSAM/medsam_vit_b.pth",
+	"work_dir":"/home/kps2152/project_medSAM_testing/Results/Train_Outputs",
+	"num_epochs": 40,
+	"batch_size": 12,
+	"lr": 0.0001,
+	"num_workers": 2,
+	"use_wandb": true,
+	"use_amp": false,
+	"device": "cuda:0",
+	"which_dataloader": "npy"
+
+}

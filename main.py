@@ -41,6 +41,7 @@ os.environ["OPENBLAS_NUM_THREADS"] = "4"  # export OPENBLAS_NUM_THREADS=4
 os.environ["MKL_NUM_THREADS"] = "6"  # export MKL_NUM_THREADS=6
 os.environ["VECLIB_MAXIMUM_THREADS"] = "4"  # export VECLIB_MAXIMUM_THREADS=4
 os.environ["NUMEXPR_NUM_THREADS"] = "6"  # export NUMEXPR_NUM_THREADS=6
+os.environ["WANDB_MODE"]="offline"
 
 
 def main_train(args):
@@ -59,14 +60,26 @@ def main_train(args):
         mask_decoder=sam_model.mask_decoder,
         prompt_encoder=sam_model.prompt_encoder).to(device)
 
-    #print out the names of all the layers
-    for name, param in medsam_model.state_dict().items():
-       print(f"Parameter name: {name} - Parameter: {param.size()}")
-    raise
+    ### If trainable_layers is not empty, go through the list and make just those layers trainable. Else, train the entire model!
+    # This gives you the flexibility to selectively fine tune a subset of model parameters when you don't have enough data to
+    # fine tune the entire model
+    if trainable_layers is not None:
+        # split up trainable_layers into a list (it's inputted as a string in the config file)
+        layers_list = trainable_layers.split(",")
 
-    # Let's freeze the image encoder and just train over the mask encoder since we don't have many individual patients...
-    for param in medsam_model.image_encoder.parameters():
+        # Freeze all layers
+        for param in medsam_model.parameters():
             param.requires_grad = False
+
+        # Unfreeze the layers in layers_list
+        for layer_name in layers_list:
+            layer = getattr(medsam_model, layer_name)
+            for param in layer.parameters():
+                param.requires_grad = True
+
+        # Verify that only the desired layer(s) is(are) unfrozen
+        for name, param in model.named_parameters():
+            print(f'{name} is {"trainable" if param.requires_grad else "frozen"}')
 
     ### Set optimizer ###
     img_mask_encdec_params = list(medsam_model.image_encoder.parameters()) + list(medsam_model.mask_decoder.parameters())
@@ -341,10 +354,12 @@ if __name__ == "__main__":
     # Initialization parameters
     parser.json_config('--config', default=None)
     parser.add_argument("--task_name", action='store',dest='task_name',type=str, default="MedSAM-ViT-B")
+    parser.add_argument("--run_name", action='store',dest='run_name',type=str, default="None")
     parser.add_argument("--model_type", action='store',dest='model_type',type=str, default="vit_b")
     parser.add_argument("--checkpoint", action='store',dest='checkpoint',type=str, default="./MedSAM/work_dir/MedSAM/medsam_vit_b.pth")
     parser.add_argument('--random_seed', action='store', dest='random_seed', type=int, help='random number seed for numpy', default=723)
     parser.add_argument("--work_dir", action='store',dest='work_dir',type=str, default="./work_dir")
+    parser.add_argument('--trainable_layers', action='store', dest='trainable_layers', type=str, help='list of layers to unfreeze', default=None)
     
     # Dataloader parameters
     parser.add_argument("--which_dataloader", action='store',dest='which_dataloader',type=str, default="npy",help="[npy,mri] choose whether to load npys from folder or niftis from csv paths")
@@ -375,6 +390,7 @@ if __name__ == "__main__":
         #wandb.login() #don't need to do this every time
         wandb.init(
             project=args.task_name,
+            name=args.run_name,
             config={
                 "lr": args.lr,
                 "batch_size": args.batch_size,
