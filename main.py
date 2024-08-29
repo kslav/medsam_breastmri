@@ -41,7 +41,7 @@ os.environ["OPENBLAS_NUM_THREADS"] = "4"  # export OPENBLAS_NUM_THREADS=4
 os.environ["MKL_NUM_THREADS"] = "6"  # export MKL_NUM_THREADS=6
 os.environ["VECLIB_MAXIMUM_THREADS"] = "4"  # export VECLIB_MAXIMUM_THREADS=4
 os.environ["NUMEXPR_NUM_THREADS"] = "6"  # export NUMEXPR_NUM_THREADS=6
-os.environ["WANDB_MODE"]="offline"
+os.environ["WANDB_MODE"]="online"
 
 
 def main_train(args):
@@ -63,22 +63,26 @@ def main_train(args):
     ### If trainable_layers is not empty, go through the list and make just those layers trainable. Else, train the entire model!
     # This gives you the flexibility to selectively fine tune a subset of model parameters when you don't have enough data to
     # fine tune the entire model
-    if trainable_layers is not None:
+    if args.trainable_layers is not None:
         # split up trainable_layers into a list (it's inputted as a string in the config file)
-        layers_list = trainable_layers.split(",")
-
+        layers_list = args.trainable_layers.split(",")
         # Freeze all layers
         for param in medsam_model.parameters():
             param.requires_grad = False
 
         # Unfreeze the layers in layers_list
         for layer_name in layers_list:
-            layer = getattr(medsam_model, layer_name)
-            for param in layer.parameters():
-                param.requires_grad = True
+            layer_parts = layer_name.split(".")
+            layer = getattr(medsam_model, layer_parts[0])
+
+            if len(layer_parts)==3:
+               exec("for param in layer.%s.%s.parameters(): param.requires_grad = True" % (layer_parts[1], layer_parts[2]))
+            if len(layer_parts)==2:
+               exec("for param in layer.%s.parameters(): param.requires_grad = True" % (layer_parts[1]))
+                
 
         # Verify that only the desired layer(s) is(are) unfrozen
-        for name, param in model.named_parameters():
+        for name, param in medsam_model.named_parameters():
             print(f'{name} is {"trainable" if param.requires_grad else "frozen"}')
 
     ### Set optimizer ###
