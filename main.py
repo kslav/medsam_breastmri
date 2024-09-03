@@ -179,7 +179,7 @@ def main_train(args):
             iter_num += 1
 
             # log images in wandb every n steps 
-            if args.use_wandb and step%args.log_frequency==0: 
+            if args.use_wandb: 
                 with torch.no_grad():
                     # pick a random image in the batch
                     item_idx = np.random.randint(0,args.batch_size) 
@@ -212,7 +212,8 @@ def main_train(args):
                     #FOR DEBUG: print("unique vals in pred_np are ", np.unique(pred_np))
                     #FOR DEBUG: print("unique vals in mask_gt are ", np.unique(mask_np))
                     # Log the figure we made
-                    wandb.log({"Train_Comparison": wandb.Image(fig)})
+                    if step%args.log_frequency==0
+                        wandb.log({"Train_Comparison": wandb.Image(fig)})
                     # Log the step-level metrics here:
                     wandb.log({"step": step, "train_loss_step": loss.item()})
                     wandb.log({"step": step, "train_dice_step": train_dice})
@@ -240,7 +241,7 @@ def main_train(args):
                 val_loss = seg_loss(medsam_pred, mask_gt_val) + ce_loss(medsam_pred, mask_gt_val.float()) #loss
                 val_epoch_loss += val_loss.item()
 
-                if args.use_wandb and step%args.log_frequency==0: 
+                if args.use_wandb: 
                     # pick a random image in the batch
                     item_idx = np.random.randint(0,args.batch_size) 
                     
@@ -268,7 +269,8 @@ def main_train(args):
                     fig = make_image_for_logging(img_np,mask_arr_forFig,box,round(val_dice,3))
 
                     # Log the figure we made
-                    wandb.log({"Val_Comparison": wandb.Image(fig)})
+                    if step%args.log_frequency==0
+                        wandb.log({"Val_Comparison": wandb.Image(fig)})
                     # Log the step-level metrics here:
                     wandb.log({"step": step,"val_loss_step": val_loss.item()})
                     wandb.log({"step": step,"val_dice_step": val_dice})
