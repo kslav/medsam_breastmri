@@ -142,6 +142,8 @@ def main_train(args):
         print("Current epoch is...", epoch)
         epoch_loss = 0
         val_epoch_loss=0
+        epoch_dice=0
+        val_epoch_dice=0
 
         ### TRAINING STEP ### 
         medsam_model.train()
@@ -200,6 +202,7 @@ def main_train(args):
 
                     # compute the dice score
                     train_dice = np.sum(pred_np[mask_np==1])*2.0 / (np.sum(pred_np) + np.sum(mask_np))
+                    epoch_dice+=train_dice
 
                     # make figure for logging
                     mask_arr_forFig = [mask_np,pred_np]
@@ -211,17 +214,19 @@ def main_train(args):
                     # Log the figure we made
                     wandb.log({"Train_Comparison": wandb.Image(fig)})
                     # Log the step-level metrics here:
-                    wandb.log({"train_loss_step": loss.item()})
-                    wandb.log({"train_dice_step": train_dice})
+                    wandb.log({"step": step, "train_loss_step": loss.item()})
+                    wandb.log({"step": step, "train_dice_step": train_dice})
                 
         
         # log epoch-level training metrics:
         epoch_loss /= step
         losses.append(epoch_loss)
+        epoch_dice/= step 
         # Log epoch-level metrics here
         if args.use_wandb:
             # Log the image with the mask overlay
             wandb.log({"epoch": epoch, "train_loss_epoch": epoch_loss})
+            wandb.log({"epoch": epoch, "train_dice_epoch": epoch_dice})
         print(f'Time: {datetime.now().strftime("%Y%m%d-%H%M")}, Epoch: {epoch}, Loss: {epoch_loss}')
 
         ### VALIDATION STEP ###
@@ -256,6 +261,7 @@ def main_train(args):
 
                     # compute dice score as our quality metric
                     val_dice = np.sum(pred_np[mask_np==1])*2.0 / (np.sum(pred_np) + np.sum(mask_np))
+                    val_epoch_dice+=val_dice
 
                     # make figure for logging
                     mask_arr_forFig = [mask_np,pred_np]
@@ -264,17 +270,19 @@ def main_train(args):
                     # Log the figure we made
                     wandb.log({"Val_Comparison": wandb.Image(fig)})
                     # Log the step-level metrics here:
-                    wandb.log({"val_loss_step": val_loss.item()})
-                    wandb.log({"val_dice_step": val_dice})
+                    wandb.log({"step": step,"val_loss_step": val_loss.item()})
+                    wandb.log({"step": step,"val_dice_step": val_dice})
 
 
         # log epoch-level validation metrics:
         val_epoch_loss /= step
         val_losses.append(val_epoch_loss)
+        val_epoch_dice/=step
         # Log epoch-level metrics here
         if args.use_wandb:
             # Log the image with the mask overlay
-            wandb.log({"val_loss_epoch": val_epoch_loss})
+            wandb.log({"epoch": epoch, "val_loss_epoch": val_epoch_loss})
+            wandb.log({"epoch": epoch, "val_dice_epoch": val_epoch_dice})
             
         ### save the latest model ###
         checkpoint = {
