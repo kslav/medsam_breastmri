@@ -212,7 +212,7 @@ def main_train(args):
                     #FOR DEBUG: print("unique vals in pred_np are ", np.unique(pred_np))
                     #FOR DEBUG: print("unique vals in mask_gt are ", np.unique(mask_np))
                     # Log the figure we made
-                    if step%args.log_frequency==0
+                    if step%args.log_frequency==0:
                         wandb.log({"Train_Comparison": wandb.Image(fig)})
                     # Log the step-level metrics here:
                     wandb.log({"step": step, "train_loss_step": loss.item()})
@@ -269,7 +269,7 @@ def main_train(args):
                     fig = make_image_for_logging(img_np,mask_arr_forFig,box,round(val_dice,3))
 
                     # Log the figure we made
-                    if step%args.log_frequency==0
+                    if step%args.log_frequency==0:
                         wandb.log({"Val_Comparison": wandb.Image(fig)})
                     # Log the step-level metrics here:
                     wandb.log({"step": step,"val_loss_step": val_loss.item()})
