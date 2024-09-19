@@ -1,6 +1,6 @@
 # MedSAM for segmenting breast lesions on MRI
 
-PURPOSE: To fine-tune the MedSAM foundation model by Ma et al. (2024) *Communications* on breast MRI data for segmenting breast lesions. The code under `~/MedSAM` is by the original authors, and all other code in this repository is derivative of this code. 
+PURPOSE: To fine-tune the MedSAM foundation model by Ma et al. (2024) *Communications* on breast MRI data for segmenting breast lesions. The code under `~/MedSAM` is by the original authors, and all other code in this repository is derivative of this code (https://github.com/bowang-lab/MedSAM)
 
 MOTIVATION: Segmentation remains an important task in medical image analysis for identifying structures of interest, such as cancers, for downstream analysis tasks. Breast cancers are notoriously difficult to segment due to varying enhancement patterns of lesions on dynamic contrast-enhanced MRI and occlusion by dense tissues. Here we aim to evaluate the ability of the MedSAM foundation model to segment breast cancers, specifically ductal carcinoma *in situ* (DCIS) on MRI when fine-tuned on a breast MRI dataset. 
 
