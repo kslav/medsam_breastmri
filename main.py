@@ -123,8 +123,8 @@ def main_train(args):
         val_dataset = SegMRIDataset(args.train_data_paths, transform=transforms.ToTensor(),which_file='nii')    
 
     print("Number of training samples: ", train_dataset.__len__())
-    train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=False)
-    val_dataloader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers, pin_memory=False,)
+    train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=False,drop_last=True)
+    val_dataloader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers, pin_memory=False,drop_last=True)
 
     ### Training loop ###
     start_epoch = 0
