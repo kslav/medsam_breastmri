@@ -19,7 +19,7 @@ Currently, MedSAM (and SAM) requires a bounding box that identifies the region i
 2. Use `~/MedSAM/utils` to preprocess your data with the appropriate script. Alternatively, if you are working with 3D MRI data of DCIS, you can start with `~/Training/utils/convert_3Dto2D.py` and modify it for your needs. 
 3. Use `~/MedSAM/utils/split.py` to split your data into training, validation, and testing sets. Alternatively, you can start with `~/Training/utils/split_Data.py`
 4. Next, create a config file in `~/configs/` (you can use one of the existing ones as a template). This is where you will input your data paths, set your training parameters, state which layers to unfreeze (see `model_layers.txt` for a list of all model layers),  and configure Weights & Biases. 
-5. Finally, run main.py (for one GPU) with `python main.py --config /path/to/config`. If you want to do distributed training, start with `~/MedSAM/train_multi_gpus.py` or `~/main_ddp.py`.
+5. Finally, run `main.py` (for one GPU) with `python main.py --config /path/to/config`. If you want to do distributed training, start with `~/MedSAM/train_multi_gpus.py` or `~/main_ddp.py`.
 
 PRELIMINARY RESULTS:
 
