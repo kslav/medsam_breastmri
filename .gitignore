@@ -1,3 +1,4 @@
 Results/
 wandb/
 .ipynb_checkpoints/
+*.pdf
